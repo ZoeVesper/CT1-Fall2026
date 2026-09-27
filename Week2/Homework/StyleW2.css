@@ -43,9 +43,18 @@ main {
 .p-regular2 {
     font-size: 15px;
     color: grey;
-    margin: 5px 10px;
-    padding: 2px 5px;
+    margin-bottom: 15px;
+    margin-top: 0;
+}
+
+section {
     background-color: yellowgreen;
+    margin: 5px 10px;
+    padding: 0 5px;
+}
+
+img {
+    max-width: 100%;
 }
 
 @media (min-width: 744px){
@@ -95,12 +104,15 @@ main {
     }
 
     .p-regular2 {
-        font-size: 20px;
+        font-size: 17px;
         color: rgb(165, 178, 98);
+    }
+
+    section {
         margin: 10px 15px;
-        padding: 6px 10px;
-        background-color: rgb(38, 52, 11);
+        padding: 5px 10px;
         columns: 2;
+        background-color: rgb(38, 52, 11);
     }
 }
 
@@ -151,11 +163,14 @@ main {
     }
 
     .p-regular2 {
-        font-size: 30px;
+        font-size: 20px;
         color: rgb(197, 200, 203);
+    }
+
+    section {
         margin: 15px 20px;
         padding: 10px 15px;
-        background-color: rgb(42, 11, 52);
         columns: 3;
+        background-color: rgb(42, 11, 52);
     }
 }
