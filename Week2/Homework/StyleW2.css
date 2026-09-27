@@ -13,6 +13,8 @@ h1 {
     margin: 0;
     padding: 3px 5px;
     color: brown;
+    display: flex;
+    justify-content: center;
 }
 
 h2 {
@@ -23,17 +25,19 @@ h2 {
 }
 
 ul {
-    list-style: lower-greek;
+    list-style: none;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
     margin: 0;
+    padding: 0;
 }
 
 li {
     padding: 2px 5px;
     font-size: 20px;
     color: rgb(0, 0, 69);
+    text-align: center;
+    border: none;
 }
 
 main {
@@ -74,6 +78,8 @@ img {
         margin: 0;
         padding: 5px 7px;
         color: rgb(42, 165, 153);
+        display: flex;
+        justify-content:flex-start;
     }
 
     h2 {
@@ -87,7 +93,7 @@ img {
         list-style: none;
         display: flex;
         flex-direction: row;
-        justify-content: center;
+        justify-content: flex-start;
         margin: 0;
         padding: 5px;
     }
