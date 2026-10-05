@@ -1,0 +1,25 @@
+html, body {
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+}
+
+.color-field {
+    background-color: rgb(142, 142, 190);
+    height: 300px;
+}
+
+header {
+    background-color: aqua;
+    padding: 10px;
+}
+
+p {
+    margin: 0;
+    padding: 10px;
+}
+
+img {
+    max-height: 100%;
+    max-width: 100%;
+}
