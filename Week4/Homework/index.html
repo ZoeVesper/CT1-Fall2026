@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>p5js Homework</title>
+</head>
+<body>
+    <h1>Documentation</h1>
+    <p>Wrote the basic script, mostly the same as the one in class, in p5js.</p>
+    <p>Want to make the circle moves in curve so ask gemma4.</p>
+    <p>Prompt: how do I make an circle moving in circle in p5js</p>
+    <p>Code: </p>
+    <p>
+        <pre>
+// 1. GLOBAL VARIABLES
+let angle = 0;           // This tracks how far around the circle the point has traveled (in radians)
+let orbitRadius = 200;   // How big the circular path is
+let circleSize = 20;     // The size of the circle that is moving
+let speed = 0.02;        // How fast the angle increases (controls movement speed)
+
+function setup() {
+  // Create the canvas
+  createCanvas(600, 600);
+}
+
+function draw() {
+  // Clear the background every frame
+  background(0); 
+
+  // 2. UPDATE THE ANGLE
+  // Increment the angle to make the circle move
+  angle += speed;
+
+  // 3. CALCULATE THE NEW POSITION
+  // We calculate the X and Y coordinates based on the angle and the radius.
+  
+  // X-coordinate: Center X + Radius * Cosine(angle)
+  let x = width / 2 + cos(angle) * orbitRadius;
+  
+  // Y-coordinate: Center Y + Radius * Sine(angle)
+  let y = height / 2 + sin(angle) * orbitRadius;
+
+  // 4. DRAW THE CIRCLE
+  // Draw the circle at the newly calculated (x, y) position
+  fill(255, 0, 0); // Red color
+  ellipse(x, y, circleSize, circleSize); 
+
+  // Optional: Draw the center point to visualize the orbit center
+  fill(0, 255, 0); // Green color
+  ellipse(width / 2, height / 2, 10, 10); 
+}
+        </pre>
+    </p>
+    <p>Not what I wanted. </p>
+    <p>Prompt:</p>
+    <p>Code</p>
+    <p>
+        <pre>
+let circleSize = 25;
+let noiseSpeed = 0.005;
+let noiseScale = 200;
+
+function setup() {
+  createCanvas(600, 600);
+  noStroke();
+}
+
+function draw() {
+  background(0, 20); 
+  let t = frameCount * noiseSpeed; 
+  let x = map(noise(t), 0, 1, 0, width) * noiseScale * 0.002;
+  let y = map(noise(t + 0.5), 0, 1, 0, height) * noiseScale * 0.002;
+
+  fill(255, 50, 0);
+  circle(x, y, circleSize);
+}
+        </pre>
+    </p>
+    
+</body>
+</html>
