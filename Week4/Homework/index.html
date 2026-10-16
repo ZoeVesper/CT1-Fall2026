@@ -6,77 +6,97 @@
     <title>p5js Homework</title>
 </head>
 <body>
-    <h1>Documentation</h1>
-    <p>Wrote the basic script, mostly the same as the one in class, in p5js.</p>
-    <p>Want to make the circle moves in curve so ask gemma4.</p>
-    <p>Prompt: how do I make an circle moving in circle in p5js</p>
-    <p>Code: </p>
-    <p>
-        <pre>
-// 1. GLOBAL VARIABLES
-let angle = 0;           // This tracks how far around the circle the point has traveled (in radians)
-let orbitRadius = 200;   // How big the circular path is
-let circleSize = 20;     // The size of the circle that is moving
-let speed = 0.02;        // How fast the angle increases (controls movement speed)
-
+  <iframe src="https://editor.p5js.org/ZoeVesper/full/XDEPmmiHM" width = "600" height = "600"></iframe>
+  <h1>Documentation</h1>
+  <p>Wrote the basic script, mostly the same as the one in class, in p5js.</p>
+  <p>Wanted to make the movement not in a straight line, so changed the VelX and VelY to be random and reset every several seconds. Tried several different tempo for the reset but still could not achieve the movement I like. Tried to make it more random. Also did not work. </p>
+  <p>Also wanted the movement in curve.</p>
+  <p>Met Maxim and talked a little bit. Was informed that I need to use sin and cos, which I could not remember.</p>
+  <p>Asked gemma4.</p>
+  <p>Prompt: how do I make an circle moving in circle in p5js.</p>
+  <p>Code: </p>
+  <p>
+      <pre>
+let angle = 0;
+let orbitRadius = 200;
+let circleSize = 20;
+let speed = 0.02;
 function setup() {
-  // Create the canvas
   createCanvas(600, 600);
 }
-
 function draw() {
-  // Clear the background every frame
   background(0); 
-
-  // 2. UPDATE THE ANGLE
-  // Increment the angle to make the circle move
   angle += speed;
-
-  // 3. CALCULATE THE NEW POSITION
-  // We calculate the X and Y coordinates based on the angle and the radius.
-  
-  // X-coordinate: Center X + Radius * Cosine(angle)
   let x = width / 2 + cos(angle) * orbitRadius;
-  
-  // Y-coordinate: Center Y + Radius * Sine(angle)
   let y = height / 2 + sin(angle) * orbitRadius;
-
-  // 4. DRAW THE CIRCLE
-  // Draw the circle at the newly calculated (x, y) position
-  fill(255, 0, 0); // Red color
+  fill(255, 0, 0);
   ellipse(x, y, circleSize, circleSize); 
-
-  // Optional: Draw the center point to visualize the orbit center
-  fill(0, 255, 0); // Green color
+  fill(0, 255, 0);
   ellipse(width / 2, height / 2, 10, 10); 
 }
-        </pre>
-    </p>
-    <p>Not what I wanted. </p>
-    <p>Prompt:</p>
-    <p>Code</p>
-    <p>
-        <pre>
+      </pre>
+  </p>
+  <p>It made the circle move in a circle which is not what I wanted. Realized I should not have said "in circle". I also wanted some randomness.</p>
+  <p>Prompt: if i do not want a circle but a random curve?</p>
+  <p>Code:</p>
+  <p>
+    <pre>
+let history = []; 
+const maxHistory = 100; 
+function setup() {
+  createCanvas(600, 600);
+  strokeWeight(2);
+}
+function draw() {
+  background(0, 10);
+  let noiseInput = frameCount * 0.01;
+  let x = map(noise(noiseInput), 0, 1, 0, width);
+  let y = map(noise(noiseInput + 0.5), 0, 1, 0, height);
+  history.push(createVector(x, y)); 
+  if (history.length > maxHistory) {
+    history.shift(); // Remove the oldest point
+  }
+  beginShape();
+  for (let p of history) {
+    vertex(p.x, p.y);
+  }
+  endShape();
+}
+    </pre>
+  </p>
+  <p>Still not what I was hoping to achieve (though it was pretty cool and I learned about beginShape() and endShape()). Probably because it thought "circle" as the one moving not the movement.</p>
+  <p>Prompt: I want a circle move in a curve inside the convas.</p>
+  <p>Code:</p>
+  <p>
+    <pre>
 let circleSize = 25;
 let noiseSpeed = 0.005;
 let noiseScale = 200;
-
 function setup() {
   createCanvas(600, 600);
   noStroke();
 }
-
 function draw() {
   background(0, 20); 
   let t = frameCount * noiseSpeed; 
   let x = map(noise(t), 0, 1, 0, width) * noiseScale * 0.002;
   let y = map(noise(t + 0.5), 0, 1, 0, height) * noiseScale * 0.002;
-
   fill(255, 50, 0);
-  circle(x, y, circleSize);
+  ellipse(x, y, circleSize, circleSize);
 }
-        </pre>
-    </p>
-    
+    </pre>
+  </p>
+  <p>Research and understand: noise(), map().</p>
+  <p>
+    <pre>
+Adjusting: 
+Remove parts that I don't need (e.g noiseScale).
+Change the circle into a line.
+(I also made one point to trace the movement of the mouse but since it should be non-interactive I deleted it.)
+    </pre>
+  </p>
+  <p>The biggest problem I encountered is to make the movement less liner. With VelX and VelY that we have learned in class the movement is always straight. I tried setInterval amount other things but still cannot make it "less straight" somehow. That is when I met Maxim in the hallway and asked him about it. He mentioned that I need to use sin and cos which I already forgot...</p>
+  <p>So at this point I decided to try use LLM to assist. I downloaded gemma4 in ollama. It took around 40 sceonds to think each time. The first prompt I put in was not acurate enough so I changed prompt. It gave me a movement that is close enough to what I wanted and I researched to understand the functions in the code and adjust it to this version.</p>
+  <p>I probably should learn more about LLMs and prompt because I feel like I don't know what to put in as prompt.</p>
 </body>
 </html>
