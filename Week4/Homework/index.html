@@ -95,6 +95,28 @@ Change the circle into a line.
 (I also made one point to trace the movement of the mouse but since it should be non-interactive I deleted it.)
     </pre>
   </p>
+  <p>Final Code:</p>
+  <p>
+    <pre>
+let noiseSpeed1 = 0.005
+let noiseSpeed2 = 0.01
+function setup() {
+  createCanvas(600, 600);
+}
+function draw() {
+  background(0, 10); 
+  let t1 = frameCount * noiseSpeed1
+  let t2 = frameCount * noiseSpeed2
+  let x1 = map(noise(t1), 0, 1, 0, width)
+  let y1 = map(noise(t1 + 0.5), 0, 1, 0, height)
+  let x2 = map(noise(t2), 0, 1, 0, width)
+  let y2 = map(noise(t2 + 0.5), 0, 1, 0, height)
+  stroke(255, 50, 0)
+  strokeWeight(8)
+  line(x1, y1, x2, y2)
+}
+    </pre>
+  </p>
   <p>The biggest problem I encountered is to make the movement less liner. With VelX and VelY that we have learned in class the movement is always straight. I tried setInterval amount other things but still cannot make it "less straight" somehow. That is when I met Maxim in the hallway and asked him about it. He mentioned that I need to use sin and cos which I already forgot...</p>
   <p>So at this point I decided to try use LLM to assist. I downloaded gemma4 in ollama. It took around 40 sceonds to think each time. The first prompt I put in was not acurate enough so I changed prompt. It gave me a movement that is close enough to what I wanted and I researched to understand the functions in the code and adjust it to this version.</p>
   <p>I probably should learn more about LLMs and prompt because I feel like I don't know what to put in as prompt.</p>
