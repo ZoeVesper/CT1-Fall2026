@@ -15,7 +15,6 @@ function setup(){
 
 function draw(){
     noFill()
-    background("black")
 
     for(let i = 0; i < numberCircles; i++){
         stroke(TWO_PI/numberCircles*i, 0.8, 0.8)
