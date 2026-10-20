@@ -58,23 +58,26 @@ function draw() {
     colorMode(HSB, TWO_PI, 1, 1, 1)
 
     for (let i = 0; i < numberCircle; i++) {
-        noFill()
-        stroke(TWO_PI/numberCircle*i, 0.8, 0.8)
-        strokeWeight(strWeight)
-        strokeCap(PROJECT)
+        noFill();
+        stroke(TWO_PI / numberCircle * i, 0.8, 0.8);
+        strokeWeight(strWeight);
+        strokeCap(PROJECT);
 
-        let aWidth = radius * 2 + (strWeight * i * 2)
-        let aHeight = aWidth
+        let aWidth = radius * 2 + (strWeight * i * 2);
+        let aHeight = aWidth;
 
-        push()
-        rotate(sin(millis() * 0.001) * 0.5 * (i * 0.5 + 5))
+        let offset = TWO_PI / numberCircle * i;
+        let arcLength = PI / 8;
 
-        arc(0, 0, aWidth, aHeight, 15/16 * PI, 17/16 * PI)
-        arc(0, 0, aWidth, aHeight, -1/16 * PI, 1/16 * PI)
+        push();
+        rotate(sin(millis()/1000));
 
+        arc(0, 0, aWidth, aHeight, 15 / 16 * PI + offset, 15 / 16 * PI + offset + arcLength);
 
-        pop()
-    }
+        arc(0, 0, aWidth, aHeight, -1 / 16 * PI + offset, -1 / 16 * PI + offset + arcLength);
+
+        pop();
+}
 
     colorMode(RGB)
 
