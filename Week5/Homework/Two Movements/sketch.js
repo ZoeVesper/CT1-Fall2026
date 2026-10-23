@@ -3,6 +3,7 @@ let radius
 let strWeight = 20
 let aWidth
 let aHeight
+let noiseSpeed = 0.005
 
 function setup() {
     createCanvas(600, 600)
@@ -41,10 +42,13 @@ function draw() {
     line(0, 0, cos(secondAngle) * 60, sin(secondAngle) * 60)
 
     noStroke()
-    fill(255)
-    circle(0, 0, 10)
+    let t = frameCount * noiseSpeed
+        
+    fill(noise(t, 0)*255, noise(t + 0.5, 0.02)*255, noise(t + 0.3, 0.07)*255)
+    circle(0, 0, 12)
 
     for (let i = 0; i < 60; i++) {
+        fill(255)
         let angle = map(i, 0, 60, 0, TWO_PI) - HALF_PI
 
         let x = cos(angle) * 65
@@ -54,31 +58,32 @@ function draw() {
         
         circle(x, y, dotSize)
     }
-    
-    colorMode(HSB, TWO_PI, 1, 1, 1)
 
     for (let i = 0; i < numberCircle; i++) {
-        noFill();
-        stroke(TWO_PI / numberCircle * i, 0.8, 0.8);
-        strokeWeight(strWeight);
-        strokeCap(PROJECT);
+        noFill()
+
+        let t = frameCount * noiseSpeed
+        
+        stroke(noise(t, 0)*255, noise(t + 0.5, 0.02)*255, noise(t + 0.3, 0.07)*255)
+        strokeWeight(strWeight)
+        strokeCap(PROJECT)
+
+        let swing = sin(s * TWO_PI) * PI / 6;
 
         let aWidth = radius * 2 + (strWeight * i * 2);
         let aHeight = aWidth;
 
         let offset = TWO_PI / numberCircle * i;
-        let arcLength = PI / 8;
+        let arcLength = PI / 8
 
         push();
-        rotate(sin(millis()/1000));
+        rotate(swing*(i*0.5+1))
 
         arc(0, 0, aWidth, aHeight, 15 / 16 * PI + offset, 15 / 16 * PI + offset + arcLength);
 
         arc(0, 0, aWidth, aHeight, -1 / 16 * PI + offset, -1 / 16 * PI + offset + arcLength);
 
-        pop();
+        pop()
 }
-
-    colorMode(RGB)
 
 }
