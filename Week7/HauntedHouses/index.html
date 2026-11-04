@@ -9,6 +9,109 @@
     <script src="https://cdn.jsdelivr.net/npm/p5.sound@0.4.1/dist/p5.sound.min.js"></script>
 </head>
 <body>
+    <main>
+        <h1>The Haunted House System</h1>
+        <p class="mut">An interactive model of how a haunted house turns space, objects, light and sound into fear.</p>
+
+        <h2>Play</h2>
+<div class="card">
+    <b>1. Build</b> &nbsp;
+    <button onclick="addLoc(new Room())">+ Room (4 slots)</button>
+    <button onclick="addLoc(new Corridor())">+ Corridor (2 slots)</button>
+    <!-- Visual block button removed from here -->
+    <button onclick="undo()">Remove last</button>
+    <button onclick="sample()">Load sample house</button>
+    <button onclick="randomHouse()">Randomise</button>
+    <button onclick="clearHouse()">Clear</button>
+    
+    <p class="mut" style="margin:12px 0 6px 0">Click a slot in the canvas to edit it. Click the dashed path near a location’s entrance or exit to place a visual block (one per doorway; blocks do not use scare slots).</p>
+
+    <div id="ed" class="mut" style="margin-bottom:12px; padding:8px; border:1px solid #3a2a2a; border-radius:4px; background: #1c1616;">Select a slot…</div>
+
+    <b>2. Test</b> &nbsp;
+    <button id="btnStart" onclick="startTest()">Start Test</button>
+    <button id="btnPause" onclick="togglePause()">Pause</button>
+    <button id="btnEnd" onclick="endTest()">End Test</button>
+</div>
+
+        <!-- The Simulator Window -->
+        <div id="cv"></div>
+
+        <!-- The Statistics Tables (Positioned below the window) -->
+        <div class="card">
+            <b id="stats">No run yet.</b>
+            <div id="exit-counts" style="margin-top:8px; font-size:0.85rem; color: #00ff00; font-family: monospace;"></div>
+            <div id="scare-stats" style="margin-top:8px; font-size:0.85rem; color: #ffaa00; font-family: monospace; border-top: 1px solid #3a2a2a; padding-top: 5px;"></div>
+            <div id="log" style="margin-top:8px;"></div>
+        </div>
+
+        <h2>Intent</h2>
+        <p>A haunted house looks like a pile of spooky props, but it behaves like a system: a handful of element categories (location, core, concealment, visual add-on, audio add-on, optional strategy) are combined into <em>encounters</em>, and the encounters are sequenced to steer a group’s movement, attention and emotion. I wanted to model the designer’s side of this: you assemble a house, send a group of visitors through it, and watch how the pieces affect each other and the visitors.</p>
+
+        <h2>Process</h2>
+        <ol>
+            <li><b>Element catalogue.</b> From my category chart I defined every legal element: Room (4 slots) and Corridor (2 slots); cores Actor, Installation, Stationary; concealments Door, Screen, Shutter, Display; add-ons Darkness, Flashing Light, Sudden Sound; strategies Visual Block, Visual Cue, Direction Change.</li>
+            <li><b>Rules as constraints.</b> A <i style="color: inherit;">Visual Cue</i> is a core + (Display or no concealment) + optional Flashing Light, so the editor only offers those options for it. Default lighting and sound are implied everywhere.</li>
+            <li><b>UML.</b> Each category became a class; a House is composed of Locations, a Location of Encounter slots, and an Encounter of one element per category. Visitors are separate agents that react to encounters.</li>
+            <li><b>Behaviour.</b> I gave encounters no fixed “scare value”. They only emit stimuli; the visitor’s state decides the result, which is where emergence comes from.</li>
+            <li><b>Sample house.</b> The 12-encounter example from my guide is built in as a preset (the sample corridor has four encounters, so it is modelled as two 2-slot corridors).</li>
+        </ol>
+
+        <h2>UML class diagram</h2>
+        <div class="card scroll">
+            <svg viewBox="0 0 1040 440" width="1040" style="max-width:100%;height:auto" font-family="monospace" font-size="11" fill="#e8dede">
+                <defs>
+                    <marker id="tri" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#171212" stroke="#c99"/></marker>
+                    <marker id="dia" markerWidth="14" markerHeight="10" refX="1" refY="5" orient="auto"><path d="M1 5L7 1L13 5L7 9Z" fill="#c99"/></marker>
+                    <marker id="arr" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M1 1L9 5L1 9" fill="none" stroke="#c99"/></marker>
+                </defs>
+                <g stroke="#c99" fill="#171212">
+                    <rect x="20" y="30" width="180" height="100"/><rect x="250" y="30" width="190" height="100"/><rect x="215" y="200" width="110" height="70"/><rect x="350" y="200" width="110" height="70"/>
+                    <rect x="520" y="30" width="210" height="130"/><rect x="800" y="30" width="200" height="90"/>
+                    <rect x="20" y="250" width="200" height="150"/>
+                    <rect x="520" y="260" width="115" height="130"/><rect x="645" y="260" width="115" height="130"/><rect x="770" y="260" width="115" height="130"/><rect x="895" y="260" width="115" height="130"/>
+                </g>
+                <g stroke="#c99" fill="none">
+                    <line x1="200" y1="80" x2="250" y2="80" marker-start="url(#dia)"/><line x1="440" y1="80" x2="520" y2="80" marker-start="url(#dia)"/>
+                    <path d="M270 200V150H345V132" marker-end="url(#tri)"/><path d="M405 200V150H345V132" marker-end="url(#tri)"/>
+                    <path d="M220 320H480V110H520" marker-end="url(#arr)"/>
+                    <path d="M625 160V210H577V260M625 210H702V260M625 210H827V260M625 210H952V260" marker-start="url(#dia)"/>
+                </g>
+                <g>
+                    <text x="28" y="48" font-weight="bold">House</text><text x="28" y="68">- segments: Location[1..5]:</text><text x="28" y="84">- doorBlocks: Encounter?[n+1]:</text><text x="28" y="100">+ slots()</text>
+                    <text x="258" y="48" font-weight="bold">«abstract» Location</text><text x="258" y="68">- slots: Encounter[2|4]:</text><text x="258" y="84">+ entrance, exit (doorways)</text><text x="258" y="100">+ slotPosition(i)</text>
+                    <text x="228" y="222" font-weight="bold">Room</text><text x="228" y="240">capacity = 4</text><text x="363" y="222" font-weight="bold">Corridor</text><text x="363" y="240">capacity = 2</text>
+                    <text x="528" y="48" font-weight="bold">Encounter</text><text x="528" y="68">- kind: scare|cue|block|turn</text><text x="528" y="84">- core, concealment</text><text x="528" y="100">- visual, sound</text><text x="528" y="116">- open, ring, totalFear</text><text x="528" y="132">+ power(): number</text><text x="528" y="148">+ draw() / sanitize()</text>
+                    <text x="808" y="48" font-weight="bold">«abstract» Element</text><text x="808" y="68">+ name</text><text x="808" y="84">+ draw()</text><text x="808" y="100">extended by all 4 categories</text>
+                    <text x="28" y="268" font-weight="bold">Visitor (agent)</text><text x="28" y="288">- fear, bravery</text><text x="28" y="304">- anticipation, focus</text><text x="28" y="320">- numbness, seen{core:n}</text><text x="28" y="336">- fled: bool</text><text x="28" y="356">+ update()</text><text x="28" y="372">+ react(encounter)</text><text x="28" y="388">+ spreadFear()</text>
+                    <text x="300" y="312" fill="#c99">reacts to</text>
+                    <text x="528" y="280" font-weight="bold">Core</text><text x="528" y="300">Actor</text><text x="528" y="316">Installation</text><text x="528" y="332">Stationary</text>
+                    <text x="653" y="280" font-weight="bold">Concealment</text><text x="653" y="300">None</text><text x="653" y="316">Door</text><text x="653" y="332">Screen</text><text x="653" y="348">Shutter</text><text x="653" y="364">Display</text>
+                    <text x="778" y="280" font-weight="bold">AddOn</text><text x="778" y="300">Darkness</text><text x="778" y="316">FlashingLight</text><text x="778" y="332">SuddenSound</text>
+                    <text x="903" y="280" font-weight="bold">Strategy</text><text x="903" y="300">VisualBlock</text><text x="903" y="316">VisualCue</text><text x="903" y="332">DirectionChange</text></g>
+                </g>
+            </svg>
+        </div>
+        <p class="mut">Composition (diamond): House → Location → Encounter → one element per category. Inheritance (triangle): Room and Corridor extend Location. Arrow: Visitors react to encounters.</p>
+
+        <h2>Element chart (source)</h2>
+        <p class="mut">My original chart of element categories, on which the editor’s options are based:</p>
+
+        <h2>Emergent properties</h2>
+        <p>No encounter has a built-in “scariness”. The same encounter can be a great scare or a wasted prop depending on its neighbours:</p>
+        <ul style="list-style: none; padding-left: 0;">
+            <li><b>Misdirection.</b> A visitor watching a Visual Cue is far more vulnerable to a jump scare that follows (the sample’s #3 → #4).</li>
+            <li><b>Anticipation.</b> Visual Blocks and Direction Changes raise anticipation, which multiplies later scares.</li>
+            <li><b>Habituation.</b> Repeating the same core type makes it less effective for that visitor.</li>
+            <li><b>Numbness.</b> Scares packed too tightly dull the visitor’s response.</li>
+            <li><b>Contagion and panic.</b> Fear spreads between nearby visitors; a visitor who panics at 100 runs out, so every later encounter is wasted on them.</li>
+        </ul>
+        <p class="mut">Try: ten jump scares in a row versus the sample house, and compare the bars.</p>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/p5@2.3.4/lib/p5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/p5.sound@0.4.1/dist/p5.sound.min.js"></script>
+    <script src="class.js"></script>
     <script src="sketch.js"></script>
 </body>
 </html>
