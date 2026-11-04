@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Haunted House System</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0909;--fg:#e8dede;--mut:#a39494;--card:#171212;--ac:#c0392b;--ln:#3a2a2a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 Georgia,"Times New Roman",serif}
+main{max-width:1000px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:2.2rem;letter-spacing:.04em;color:#e55;margin:.2em 0}
+h2{color:#e55;border-bottom:1px solid var(--ln);padding-bottom:4px;margin-top:2em}
+p,li{color:var(--fg)} .mut{color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:12px;margin:12px 0}
+.scroll{overflow-x:auto}
+button,select{background:#241a1a;color:var(--fg);border:1px solid #5a3a3a;border-radius:6px;padding:6px 10px;font:inherit;font-size:.9rem;cursor:pointer;margin:2px}
+button:hover{background:#3a2020} button.go{background:#8e2a20}
+label{font-size:.85rem;color:var(--mut);margin-right:8px}
+#cv canvas{max-width:100%;height:auto!important;display:block;border:1px solid var(--ln);border-radius:6px}
+#log{font:13px/1.5 monospace;color:#d9b;min-height:90px}
+table{border-collapse:collapse;width:100%;font-size:.9rem} td,th{border:1px solid var(--ln);padding:4px 8px;text-align:left}
+</style></head><body><main>
+<h1>The Haunted House System</h1>
+<p class="mut">An interactive model of how a haunted house turns space, objects, light and sound into fear.</p>
+
+<h2>Play</h2>
+<div class="card">
+<b>1. Build</b> &nbsp;
+<button onclick="addLoc(new Room())">+ Room (4 slots)</button><button onclick="addLoc(new Corridor())">+ Corridor (2 slots)</button><button onclick="addBlock()">+ Visual block</button><button onclick="undo()">Remove last</button><button onclick="sample()">Load sample house</button><button onclick="randomHouse()">Randomise</button><button onclick="house=new House();sel=null;edit()">Clear</button>
+<p class="mut" style="margin:6px 0">Click a slot in the canvas to edit it. Click the dashed path near a location’s entrance or exit to place a visual block (one per doorway; blocks do not use scare slots). <b>2. Test</b> <button class="go" onclick="send()">Send a group of 5 visitors</button></p>
+<div id="ed" class="mut">Select a slot…</div></div>
+<div id="cv"></div>
+<div class="card"><b id="stats">No run yet.</b><div id="log"></div></div>
+
+<h2>Intent</h2>
+<p>A haunted house looks like a pile of spooky props, but it behaves like a system: a handful of element categories (location, core, concealment, visual add-on, audio add-on, optional strategy) are combined into <em>encounters</em>, and the encounters are sequenced to steer a group’s movement, attention and emotion. I wanted to model the designer’s side of this: you assemble a house, send a group of visitors through it, and watch how the pieces affect each other and the visitors.</p>
+
+<h2>Process</h2>
+<ol>
+<li><b>Element catalogue.</b> From my category chart I defined every legal element: Room (4 slots) and Corridor (2 slots); cores Actor, Installation, Stationary; concealments Door, Screen, Shutter, Display; add-ons Darkness, Flashing Light, Sudden Sound; strategies Visual Block, Visual Cue, Direction Change.</li>
+<li><b>Rules as constraints.</b> A <i>Visual Cue</i> is a core + (Display or no concealment) + optional Flashing Light, so the editor only offers those options for it. Default lighting and sound are implied everywhere.</li>
+<li><b>UML.</b> Each category became a class; a House is composed of Locations, a Location of Encounter slots, and an Encounter of one element per category. Visitors are separate agents that react to encounters.</li>
+<li><b>Behaviour.</b> I gave encounters no fixed “scare value”. They only emit stimuli; the visitor’s state decides the result, which is where emergence comes from.</li>
+<li><b>Sample house.</b> The 12-encounter example from my guide is built in as a preset (the sample corridor has four encounters, so it is modelled as two 2-slot corridors).</li>
+</ol>
+
+<h2>UML class diagram</h2>
+<div class="card scroll"><svg viewBox="0 0 1040 440" width="1040" style="max-width:100%;height:auto" font-family="monospace" font-size="11" fill="#e8dede">
+<defs><marker id="tri" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#171212" stroke="#c99"/></marker>
+<marker id="dia" markerWidth="14" markerHeight="10" refX="1" refY="5" orient="auto"><path d="M1 5L7 1L13 5L7 9Z" fill="#c99"/></marker>
+<marker id="arr" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M1 1L9 5L1 9" fill="none" stroke="#c99"/></marker></defs>
+<g stroke="#c99" fill="#171212">
+<rect x="20" y="30" width="180" height="100"/><rect x="250" y="30" width="190" height="100"/><rect x="215" y="200" width="110" height="70"/><rect x="350" y="200" width="110" height="70"/>
+<rect x="520" y="30" width="210" height="130"/><rect x="800" y="30" width="200" height="90"/>
+<rect x="20" y="250" width="200" height="150"/>
+<rect x="520" y="260" width="115" height="130"/><rect x="645" y="260" width="115" height="130"/><rect x="770" y="260" width="115" height="130"/><rect x="895" y="260" width="115" height="130"/></g>
+<g stroke="#c99" fill="none"><line x1="200" y1="80" x2="250" y2="80" marker-start="url(#dia)"/><line x1="440" y1="80" x2="520" y2="80" marker-start="url(#dia)"/>
+<path d="M270 200V150H345V132" marker-end="url(#tri)"/><path d="M405 200V150H345V132" marker-end="url(#tri)"/>
+<path d="M220 320H480V110H520" marker-end="url(#arr)"/>
+<path d="M625 160V210H577V260M625 210H702V260M625 210H827V260M625 210H952V260" marker-start="url(#dia)"/></g>
+<g><text x="28" y="48" font-weight="bold">House</text><text x="28" y="68">- segments: Location[1..5]</text><text x="28" y="84">- doorBlocks: Encounter?[n+1]</text><text x="28" y="100">+ slots()</text>
+<text x="258" y="48" font-weight="bold">«abstract» Location</text><text x="258" y="68">- slots: Encounter[2|4]</text><text x="258" y="84">+ entrance, exit (doorways)</text><text x="258" y="100">+ slotPosition(i)</text>
+<text x="228" y="222" font-weight="bold">Room</text><text x="228" y="240">capacity = 4</text><text x="363" y="222" font-weight="bold">Corridor</text><text x="363" y="240">capacity = 2</text>
+<text x="528" y="48" font-weight="bold">Encounter</text><text x="528" y="68">- kind: scare|cue|block|turn</text><text x="528" y="84">- core, concealment</text><text x="528" y="100">- visual, sound</text><text x="528" y="116">- open, ring, totalFear</text><text x="528" y="132">+ power(): number</text><text x="528" y="148">+ draw() / sanitize()</text>
+<text x="808" y="48" font-weight="bold">«abstract» Element</text><text x="808" y="68">+ name</text><text x="808" y="84">+ draw()</text><text x="808" y="100">extended by all 4 categories</text>
+<text x="28" y="268" font-weight="bold">Visitor (agent)</text><text x="28" y="288">- fear, bravery</text><text x="28" y="304">- anticipation, focus</text><text x="28" y="320">- numbness, seen{core:n}</text><text x="28" y="336">- fled: bool</text><text x="28" y="356">+ update()</text><text x="28" y="372">+ react(encounter)</text><text x="28" y="388">+ spreadFear()</text>
+<text x="300" y="312" fill="#c99">reacts to</text>
+<text x="528" y="280" font-weight="bold">Core</text><text x="528" y="300">Actor</text><text x="528" y="316">Installation</text><text x="528" y="332">Stationary</text>
+<text x="653" y="280" font-weight="bold">Concealment</text><text x="653" y="300">None</text><text x="653" y="316">Door</text><text x="653" y="332">Screen</text><text x="653" y="348">Shutter</text><text x="653" y="364">Display</text>
+<text x="778" y="280" font-weight="bold">AddOn</text><text x="778" y="300">Darkness</text><text x="778" y="316">FlashingLight</text><text x="778" y="332">SuddenSound</text>
+<text x="903" y="280" font-weight="bold">Strategy</text><text x="903" y="300">VisualBlock</text><text x="903" y="316">VisualCue</text><text x="903" y="332">DirectionChange</text></g></svg></div>
+<p class="mut">Composition (diamond): House → Location → Encounter → one element per category. Inheritance (triangle): Room and Corridor extend Location. Arrow: Visitors react to encounters.</p>
+
+<h2>Element chart (source)</h2>
+<p class="mut">My original chart of element categories, on which the editor’s options are based:</p>
+<p><i>(Upload Guide2.png next to this page and reference it here if you host it yourself; this hosted page can only embed self-contained assets.)</i></p>
+
+<h2>Emergent properties</h2>
+<p>No encounter has a built-in “scariness”. The same encounter can be a great scare or a wasted prop depending on its neighbours:</p>
+<ul>
+<li><b>Misdirection.</b> A visitor watching a Visual Cue is far more vulnerable to a jump scare that follows (the sample’s #3 → #4).</li>
+<li><b>Anticipation.</b> Visual Blocks and Direction Changes raise anticipation, which multiplies later scares.</li>
+<li><b>Habituation.</b> Repeating the same core type makes it less effective for that visitor.</li>
+<li><b>Numbness.</b> Scares packed too tightly dull the visitor’s response.</li>
+<li><b>Contagion and panic.</b> Fear spreads between nearby visitors; a visitor who panics at 100 runs out, so every later encounter is wasted on them. The bar chart shows the average fear each encounter produced.</li>
+</ul>
+<p class="mut">Try: ten jump scares in a row versus the sample house, and compare the bars.</p>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script>
+const MAXB=3;
+const CORES=['actor','installation','stationary'],CONC=['none','door','screen','shutter','display'],VIS=['none','darkness','flashing'],SND=['none','sudden'];
+const BASE={actor:38,installation:44,stationary:22};
+class Encounter{constructor(){Object.assign(this,{kind:'empty',core:'actor',conc:'none',vis:'none',snd:'none',open:0,reveal:0,ring:0,total:0,hits:0,logged:false})}
+ sanitize(){if(this.kind=='cue'){if(!['none','display'].includes(this.conc))this.conc='none';if(this.vis=='darkness')this.vis='none';this.snd='none'}
+  else if(this.kind!='scare'){this.conc=this.vis=this.snd='none'}}
+ power(){let p=BASE[this.core];if(this.conc!='none')p+=12;if(this.vis=='darkness')p+=8;if(this.vis=='flashing')p+=6;if(this.snd=='sudden')p+=14;return p}
+ tick(){if(this.reveal>0){this.open=lerp(this.open,1,.3);this.reveal--}else this.open=lerp(this.open,0,.1);if(this.ring>0)this.ring--}
+ drawBlock(x,y,n,s){push();translate(x,y);
+  if(s){noFill();stroke(255,200,0);strokeWeight(2);rect(-26,-46,52,92,6)}
+  noStroke();const sw=this.open*6;
+  for(let i=-3;i<=3;i++){fill(120+i*4,25,28,238);rect(i*7-3+sin(frameCount*.3+i)*sw,-42,6,84+(i%2?-8:0))}
+  fill(150);textSize(10);textAlign(CENTER,CENTER);if(n)text('#'+n,0,56);pop()}
+ draw(x,y,n,s){push();translate(x,y);
+  if(s){noFill();stroke(255,200,0);strokeWeight(2);rect(-31,-31,62,62,6)}
+  stroke(70);strokeWeight(1);fill(18);rect(-26,-26,52,52,4);noStroke();
+  if(this.kind=='empty'){fill(90);textAlign(CENTER,CENTER);textSize(20);text('+',0,0)}
+  else if(this.kind=='block'){fill(120,30,30);for(let i=-3;i<=3;i++)rect(i*7-3,-24,6,48+(i%2?-6:0))}
+  else if(this.kind=='turn'){fill(200,170,90);triangle(-12,-16,14,0,-12,16);fill(18);triangle(-16,-16,6,0,-16,16)}
+  else{drawCore(this.core);
+   if(this.vis=='darkness'){fill(0,0,0,190*(1-this.open*.6));rect(-25,-25,50,50)}
+   drawConc(this.conc,this.open);
+   if(this.vis=='flashing'&&frameCount%20<10){fill(255,255,190,100);rect(-25,-25,50,50)}
+   if(this.kind=='cue'){stroke(80,200,80);strokeWeight(2);noFill();ellipse(-16,-18,14,8);fill(80,200,80);noStroke();ellipse(-16,-18,5,5)}
+   if(this.ring>0){noFill();stroke(90,255,90,this.ring*8);strokeWeight(2);ellipse(0,0,(30-this.ring)*4,(30-this.ring)*4)}}
+  noStroke();fill(150);textSize(10);textAlign(CENTER,CENTER);if(n)text('#'+n,0,38);pop()}}
+function drawCore(c){noStroke();
+ if(c=='actor'){fill(12);ellipse(0,6,30,38);ellipse(0,-12,22,22);fill(255,30,30);ellipse(-4,-13,3,3);ellipse(4,-13,3,3);rect(-4,-7,8,2)}
+ else if(c=='installation'){fill(50);ellipse(0,8,28,34);fill(20);triangle(-14,-6,14,-6,0,-24);rect(-16,-8,32,3);fill(255,40,40);ellipse(2,-1,3,3);noFill();stroke(130);ellipse(10,12,10,10)}
+ else{fill(130,20,20);ellipse(0,0,38,38);stroke(235);strokeWeight(3);line(-12,6,10,-4);strokeWeight(5);point(10,-4);point(-12,6)}}
+function drawConc(k,o){if(k=='none')return;let a=255*(1-o);push();strokeWeight(1);
+ if(k=='door'){fill(70,66,66,a);stroke(140,a);rect(-18,-24,36,48);rect(-12,-18,24,14)}
+ if(k=='screen'){fill(110,160,210,a*.85);stroke(60,a);rect(-22,-20,44,40);line(0,-20,0,20);line(-22,0,22,0)}
+ if(k=='display'){fill(30,45,45,a*.9);stroke(120,a);rect(-20,-26,40,52);line(0,-26,0,26);line(-20,0,20,0)}
+ if(k=='shutter'){translate(0,-o*46);fill(190,a);stroke(60,a);for(let j=0;j<4;j++)rect(-21,-23+j*11,42,9)}
+ pop()}
+class Location{constructor(){this.slots=Array.from({length:this.cap},()=>new Encounter())}}
+class Room extends Location{get cap(){return 4}get w(){return 240}get kind(){return 'room'}pos(i){return[[40,70],[100,270],[160,70],[215,270]][i]}}
+class Corridor extends Location{get cap(){return 2}get w(){return 150}get kind(){return 'corridor'}pos(i){return[[40,115],[105,225]][i]}}
+class House{constructor(){this.segs=[];this.bl=[null]}get total(){return this.segs.reduce((a,s)=>a+s.w,0)}
+ slots(){let o=0,r=[];const n=this.segs.length;
+  this.segs.forEach((s,si)=>{if(this.bl[si])r.push({e:this.bl[si],x:si==0?12:o,y:170});s.slots.forEach((e,i)=>{let p=s.pos(i);r.push({e,x:o+p[0],y:p[1]})});o+=s.w});
+  if(n&&this.bl[n])r.push({e:this.bl[n],x:o-12,y:170});return r.sort((a,b)=>a.x-b.x)}}
+class Visitor{constructor(x,id){Object.assign(this,{x,id,y:170+random(-25,25),sp:random(1,1.4),brave:random(.1,.7),fear:0,peak:0,ant:0,focus:0,numb:0,seen:{},done:new Set(),fled:false,out:false})}
+ update(list,grp){
+  if(this.fled){this.x-=3;if(this.x<-40)this.out=true;return}
+  this.x+=this.sp*(1-this.ant/250);this.focus=max(0,this.focus-1);this.numb=max(0,this.numb-.0006);this.fear*=.9985;
+  for(const o of list)if(!this.done.has(o.e)&&o.e.kind!='empty'&&abs(this.x-o.x)<14){this.done.add(o.e);this.react(o,grp)}
+  if(this.fear>=100&&!this.fled){this.fled=true;note("Visitor "+this.id+" panics and runs out – later encounters are wasted on them.")}}
+ react(o,grp){const e=o.e;
+  if(e.kind=='block'){this.ant=min(60,this.ant+10);e.reveal=40}
+  else if(e.kind=='turn'){this.ant=min(60,this.ant+6);this.focus=0}
+  else if(e.kind=='cue'){this.focus=150;this.add(e,4+(e.vis=='flashing'?4:0),grp,o)}
+  else{let m=1+this.ant/100,why='';
+   if(this.focus>0){m*=1.7;why=' (misdirection ×1.7)'}
+   m/=1+.5*(this.seen[e.core]||0);m*=1-this.numb;
+   this.seen[e.core]=(this.seen[e.core]||0)+1;this.numb=min(.6,this.numb+.1);
+   e.reveal=70;if(e.snd=='sudden')e.ring=30;
+   const d=e.power()*m*(1-this.brave*.6);this.add(e,d,grp,o);
+   if(!e.logged){e.logged=true;note("Visitor "+this.id+" hit by "+e.core+(e.conc!='none'?' behind '+e.conc:'')+": +"+d.toFixed(0)+" fear"+why)}}}
+ add(e,d,grp,o){this.fear+=d;this.peak=max(this.peak,this.fear);e.total+=d;e.hits++;
+  for(const v of grp)if(v!==this&&!v.fled&&abs(v.x-this.x)<60)v.fear+=d*.25}
+ draw(){push();translate(this.x,this.y);noStroke();fill(lerpColor(color(120,220,140),color(255,50,50),min(1,this.fear/100)));if(this.fled)fill(255,255,0);ellipse(0,0,14,14);
+  fill(0);ellipse(-2.5,-1,2,2);ellipse(2.5,-1,2,2);ellipse(0,3,3,this.fear>50?5:1);
+  noFill();stroke(255,60,60);strokeWeight(2);arc(0,0,22,22,-HALF_PI,-HALF_PI+TWO_PI*min(1,this.fear/100));pop()}}
+let house=new House(),sel=null,group=[],running=false,logs=[],W=960,H=440;
+function note(s){logs.unshift(s);logs=logs.slice(0,8);document.getElementById('log').innerHTML=logs.join('<br>')}
+function addLoc(l){if(house.segs.length<5){house.segs.push(l);house.bl.push(null)}}
+function undo(){if(house.segs.length){house.segs.pop();house.bl.pop()}sel=null;edit()}
+function mk(L,a){a.forEach((o,i)=>Object.assign(L.slots[i],o))}
+function blk(h,ks){ks.forEach(k=>{const e=new Encounter();e.kind='block';h.bl[k]=e})}
+function sample(){house=new House();sel=null;
+ const cue={kind:'cue',core:'stationary',conc:'display',vis:'flashing'};
+ let a=new Room();mk(a,[{kind:'cue',core:'stationary'},{kind:'scare',core:'actor',conc:'door',snd:'sudden'}]);
+ let b=new Corridor();mk(b,[cue]);let c=new Corridor();mk(c,[{kind:'turn'},cue]);
+ let d=new Room();mk(d,[{kind:'cue',core:'stationary',vis:'flashing'},{kind:'scare',core:'actor',conc:'screen',vis:'darkness',snd:'sudden'},{kind:'scare',core:'installation',conc:'shutter',vis:'darkness',snd:'sudden'}]);
+ [a,b,c,d].forEach(addLoc);blk(house,[0,1,3]);edit()}
+function randomHouse(){house=new House();sel=null;for(let i=0;i<3;i++)addLoc(random()<.5?new Room():new Corridor());
+ house.segs.forEach(g=>g.slots.forEach(e=>{e.kind=random(['scare','scare','cue','turn','empty']);e.core=random(CORES);e.conc=random(CONC);e.vis=random(VIS);e.snd=random(SND);e.sanitize()}));
+ blk(house,house.bl.map((_,k)=>k).filter(()=>random()<.5));edit()}
+function send(){if(!house.segs.length){note("Build something first.");return}
+ house.slots().forEach(o=>Object.assign(o.e,{total:0,hits:0,logged:false,open:0,reveal:0}));
+ group=Array.from({length:5},(_,i)=>new Visitor(-i*40,i+1));running=true;logs=[];note("Group enters…")}
+function opts(a,v){return a.map(x=>`<option ${x==v?'selected':''}>${x}</option>`).join('')}
+function edit(){const el=document.getElementById('ed');if(!sel){el.textContent='Select a slot…';return}const e=sel;if(e.kind=='block'){el.innerHTML='<b>Visual block</b> – sits on an entrance/exit and uses no scare slot. A doorway shared by two locations holds just one block. <button onclick="rmBlock()">Remove block</button>';return}let h=`<label>type <select onchange="setF('kind',this.value)">${opts(['empty','scare','cue','turn'],e.kind)}</select></label>`;
+ if(e.kind=='scare'||e.kind=='cue'){h+=`<label>core <select onchange="setF('core',this.value)">${opts(CORES,e.core)}</select></label>
+ <label>concealment <select onchange="setF('conc',this.value)">${opts(e.kind=='cue'?['none','display']:CONC,e.conc)}</select></label>
+ <label>visual <select onchange="setF('vis',this.value)">${opts(e.kind=='cue'?['none','flashing']:VIS,e.vis)}</select></label>`;
+ if(e.kind=='scare')h+=`<label>sound <select onchange="setF('snd',this.value)">${opts(SND,e.snd)}</select></label>`}
+ el.innerHTML=h}
+function setF(k,v){sel[k]=v;sel.sanitize();edit()}
+function setup(){createCanvas(W,H).parent('cv');textFont('monospace')}
+function sc(){return min(1,(W-40)/max(1,house.total))}
+function draw(){background(8);const s=sc(),list=house.slots();push();translate(20,0);scale(s);
+ let o=0;noStroke();house.segs.forEach(g=>{fill(24);stroke(80);strokeWeight(2);if(g.kind=='room')rect(o+4,20,g.w-8,300);else rect(o+4,90,g.w-8,160);o+=g.w});
+ if(!house.segs.length){fill(120);noStroke();textAlign(LEFT);textSize(16);text('Add a Room or Corridor to begin…',20,160)}
+ else{stroke(60);strokeWeight(1);drawingContext.setLineDash([6,6]);line(0,170,house.total,170);drawingContext.setLineDash([])}
+ let n=0;list.forEach(q=>{q.e.tick();if(q.e.kind!='empty')n++;q.n=q.e.kind!='empty'?n:0;if(q.e.kind!='block')q.e.draw(q.x,q.y,q.n,q.e===sel)});
+ if(running){group.forEach(v=>v.update(list,group));
+  if(group.every(v=>v.out||v.x>house.total+20)){running=false;summary()}}
+ group.forEach(v=>v.draw());
+ list.forEach(q=>{if(q.e.kind=='block')q.e.drawBlock(q.x,q.y,q.n,q.e===sel)});
+ list.forEach(q=>{if(q.e.hits>0){const h=min(80,q.e.total/q.e.hits*1.6);fill(192,57,43);noStroke();rect(q.x-8,430-h,16,h);fill(200);textSize(10);textAlign(CENTER);text('#'+q.n,q.x,438)}});
+ pop();
+ if(running&&frameCount%10==0){const f=group.reduce((a,v)=>a+v.fear,0)/5;document.getElementById('stats').textContent='Running… average fear '+f.toFixed(0)+' | panicked: '+group.filter(v=>v.fled).length}}
+function summary(){const f=group.reduce((a,v)=>a+v.fear,0)/5,p=group.reduce((a,v)=>a+v.peak,0)/5;
+ document.getElementById('stats').textContent='Done. Average peak fear '+p.toFixed(0)+' | panicked: '+group.filter(v=>v.fled).length+'/5. Red bars show the average fear each encounter produced.'}
+function mousePressed(){if(mouseX<0||mouseY<0||mouseX>W||mouseY>H)return;const s=sc(),mx=(mouseX-20)/s,my=mouseY/s;let hit=null;
+ house.slots().forEach(q=>{const k=q.e.kind=='block';if(abs(mx-q.x)<(k?16:28)&&abs(my-q.y)<(k?46:28))hit=q.e});
+ if(hit){sel=hit;edit();return}
+ if(abs(my-170)<22&&house.segs.length){let b=-1,bd=40,o=0;const xs=[12];house.segs.forEach(g=>{o+=g.w;xs.push(o)});xs[xs.length-1]-=12;
+  xs.forEach((x,k)=>{if(abs(mx-x)<bd){bd=abs(mx-x);b=k}});if(b>=0)putBlock(b)}}
+function putBlock(k){if(!house.bl[k]){const e=new Encounter();e.kind='block';house.bl[k]=e}sel=house.bl[k];edit()}
+function addBlock(){if(!house.segs.length){note("Add a location first.");return}const k=house.bl.findIndex(b=>!b);if(k<0)note("Every entrance and exit already has a visual block.");else putBlock(k)}
+function rmBlock(){house.bl=house.bl.map(b=>b===sel?null:b);sel=null;edit()}
+</script></body></html>
