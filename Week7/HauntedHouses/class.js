@@ -232,11 +232,20 @@ class Corridor extends Location {
 class House {
     constructor() {
         this.segs = [];
-        this.bl = [null];
+        this.exitCounts = [];
     }
     get total() { return this.segs.reduce((a, s) => a + s.w, 0) }
-    
+
+    // Doorway k: 0 = house entrance, k = exit of location k-1
+    // (which is the same object as the entrance of location k).
+    doorway(k) {
+        if (k == 0) return this.segs[0].slots[0];
+        const s = this.segs[k - 1];
+        return s.slots[s.cap - 1];
+    }
+
     updateExits() {
+        this.exitCounts = this.segs.map(() => 0);
         let o = 0;
         this.segs.forEach((s) => {
             // Gate positions are basically the boundaries between segments

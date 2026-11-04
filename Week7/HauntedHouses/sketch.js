@@ -6,7 +6,8 @@ let house = new House(),
     spawnTimer = 0,
     logs = [],
     W = 960,
-    H = 440;
+    H = 440,
+    MAX_VISITORS = 10;
 
 function note(s) {
     logs.unshift(s);
@@ -21,11 +22,11 @@ function addLoc(l) {
         if (house.segs.length > 0) {
             let prevRoom = house.segs[house.segs.length - 1];
             // The entrance (index 0) of the new location is now the same object as the exit of the previous one
-            l.slots[0] = prevRoom.slots[l.cap - 1];
+            // (use the PREVIOUS location's size, not the new one's)
+            l.slots[0] = prevRoom.slots[prevRoom.cap - 1];
         }
-        
+
         house.segs.push(l);
-        house.bl.push(null);
         house.updateExits();
         console.log("Added location. Total segments:", house.segs.length);
     }
@@ -34,7 +35,6 @@ function addLoc(l) {
 function undo() {
     if (house.segs.length) {
         house.segs.pop();
-        house.bl.pop();
         house.updateExits();
     }
     sel = null;
@@ -45,17 +45,25 @@ function mk(L, a) {
     a.forEach((o, i) => Object.assign(L.slots[i], o));
 }
 
-// This function is now kept for compatibility but is no longer 
-// used for the main doorway blocks since they are now in the slots array.
+// Put a visual block on doorways ks (blocks live in the doorway slots).
 function blk(h, ks) {
     ks.forEach(k => {
-        const e = new Encounter();
+        const e = h.doorway(k);
         e.kind = 'block';
-        h.bl[k] = e;
+        e.sanitize();
     });
 }
 
+// Stop any test that is running (used when the house is rebuilt).
+function stopRun() {
+    running = false;
+    paused = false;
+    group = [];
+    document.getElementById('btnPause').textContent = "Pause";
+}
+
 function sample() {
+    stopRun();
     house = new House();
     sel = null;
     const cue = { kind: 'cue', core: 'stationary', conc: 'display', vis: 'flashing' };
@@ -96,6 +104,7 @@ function sample() {
 }
 
 function randomHouse() {
+    stopRun();
     house = new House();
     sel = null;
     for (let i = 0; i < 3; i++) addLoc(random() < .5 ? new Room() : new Corridor());
@@ -108,9 +117,14 @@ function randomHouse() {
         e.snd = random(SND);
         e.sanitize();
     }));
-    // Note: Since we now use slots for blocks, we don't strictly need 
-    // the bl array for anything other than the logic in the old blk() call.
-    blk(house, house.bl.map((_, k) => k).filter(() => random() < .5));
+    // Doorways (one more than the number of locations) are either empty or a block.
+    const doors = [];
+    for (let k = 0; k <= house.segs.length; k++) {
+        house.doorway(k).kind = 'empty';
+        house.doorway(k).sanitize();
+        if (random() < .5) doors.push(k);
+    }
+    blk(house, doors);
     edit();
 }
 
@@ -119,9 +133,8 @@ function startTest() {
         note("Build something first.");
         return;
     }
-    running = false;
-    paused = false;
-    group = [];
+    stopRun();
+    house.updateExits(); // resets exit counts
     logs = [];
     document.getElementById('log').innerHTML = '';
     document.getElementById('stats').textContent = 'Initializing...';
@@ -180,7 +193,7 @@ function edit() {
         el.innerHTML = '<b>Visual block</b> – sits on an entrance/exit and uses no scare slot. A doorway shared by two locations holds just one block. <button onclick="rmBlock()">Remove block</button>';
         return;
     }
-    let h = `<label>type <select onchange="setF('kind',this.value)">${opts(['empty', 'scare', 'cue', 'turn'], e.kind)}</select></label>`;
+    let h = `<label>type <select onchange="setF('kind',this.value)">${opts(['empty', 'scare', 'cue', 'turn', 'block'], e.kind)}</select></label>`;
     if (e.kind == 'scare' || e.kind == 'cue') {
         h += `<label>core <select onchange="setF('core',this.value)">${opts(CORES, e.core)}</select></label>
          <label>concealment <select onchange="setF('conc',this.value)">${opts(e.kind == 'cue' ? ['none', 'display'] : CONC, e.conc)}</select></label>
@@ -251,7 +264,9 @@ function draw() {
 
     if (running && !paused) {
         spawnTimer++;
-        if (spawnTimer > 120) {
+        // Keep sending visitors in until the group reaches MAX_VISITORS,
+        // otherwise new ones keep spawning and the test can never finish.
+        if (spawnTimer > 120 && group.length < MAX_VISITORS) {
             group.push(new Visitor(-20, group.length + 1, 170, 1.2));
             spawnTimer = 0;
         }
@@ -348,12 +363,8 @@ function mousePressed() {
 }
 
 function putBlock(k) {
-    if (!house.bl[k]) {
-        const e = new Encounter();
-        e.kind = 'block';
-        house.bl[k] = e;
-    }
-    sel = house.bl[k];
+    blk(house, [k]);
+    sel = house.doorway(k);
     edit();
 }
 
@@ -362,18 +373,22 @@ function addBlock() {
         note("Add a location first.");
         return;
     }
-    const k = house.bl.findIndex(b => !b);
+    let k = -1;
+    for (let i = 0; i <= house.segs.length; i++) {
+        if (house.doorway(i).kind != 'block') { k = i; break; }
+    }
     if (k < 0) note("Every entrance and exit already has a visual block.");
     else putBlock(k);
 }
 
 function rmBlock() {
-    house.bl = house.bl.map(b => b === sel ? null : b);
+    if (sel) sel.kind = 'empty';
     sel = null;
     edit();
 }
 
 function clearHouse() {
+    stopRun();
     house = new House();
     sel = null;
     edit();
