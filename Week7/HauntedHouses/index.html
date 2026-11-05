@@ -14,15 +14,16 @@
         <h2>Play</h2>
 <div class="card">
     <b>1. Build</b> &nbsp;
-    <button onclick="addLoc(new Room())">+ Room (4 slots)</button>
-    <button onclick="addLoc(new Corridor())">+ Corridor (2 slots)</button>
+    <button onclick="addLoc(new Room())">+ Room (4 floor + 8 wall slots)</button>
+    <button onclick="addLoc(new Corridor())">+ Corridor (2 wall slots)</button>
+    <button onclick="addLoc(new Corner('left'))">+ Corner ↰ left</button>
+    <button onclick="addLoc(new Corner('right'))">+ Corner ↱ right</button>
     <!-- Visual block button removed from here -->
     <button onclick="undo()">Remove last</button>
-    <button onclick="sample()">Load sample house</button>
     <button onclick="randomHouse()">Randomise</button>
     <button onclick="clearHouse()">Clear</button>
     
-    <p class="mut" style="margin:12px 0 6px 0">Click a slot in the canvas to edit it. Click the dashed path near a location’s entrance or exit to place a visual block (one per doorway; blocks do not use scare slots).</p>
+    <p class="mut" style="margin:12px 0 6px 0">Each new location starts at the exit of the last one. Click inside a room to choose its exit wall (straight on, left or right); use a corner to turn a corridor. Wall slots sit in the hidden staff area (dashed) behind the wall and show through an opening; using a floor slot rules out the wall slots next to it. Click a doorway on the dashed path to place a visual block.</p>
 
     <div id="ed" class="mut" style="margin-bottom:12px; padding:8px; border:1px solid #3a2a2a; border-radius:4px; background: #1c1616;">Select a slot…</div>
 
@@ -48,11 +49,10 @@
 
         <h2>Process</h2>
         <ol>
-            <li><b>Element catalogue.</b> From my category chart I defined every legal element: Room (4 slots) and Corridor (2 slots); cores Actor, Installation, Stationary; concealments Door, Screen, Shutter, Display; add-ons Darkness, Flashing Light, Sudden Sound; strategies Visual Block, Visual Cue, Direction Change.</li>
-            <li><b>Rules as constraints.</b> A <i style="color: inherit;">Visual Cue</i> is a core + (Display or no concealment) + optional Flashing Light, so the editor only offers those options for it. Default lighting and sound are implied everywhere.</li>
+            <li><b>Element catalogue.</b> From my category chart I defined every legal element: Room (4 floor slots + 2 slots behind each wall), Corridor (one slot behind each side wall) and Corner (a corridor turn, 2 wall slots); cores Actor, Installation, Stationary; concealments Door, Screen, Shutter, Display; add-ons Darkness, Flashing Light, Sudden Sound; strategies Visual Block, Visual Cue, Direction Change.</li>
+            <li><b>Rules as constraints.</b> A <i style="color: inherit;">Visual Cue</i> is a core + (Display or no concealment) + optional Flashing Light, so the editor only offers those options for it. Wall slots are in a hidden staff area, so they must use an opening (Door, Screen, Shutter or Display); floor slots are open or behind a free-standing Screen or Display. A floor slot and the wall slots next to it rule each other out. A <i style="color: inherit;">Direction Change</i> is not a slot: a room can exit through its left or right wall, and a corridor turns with a Corner piece. Locations may not overlap, and a new location may not cover the hidden area of a wall slot in use. Default lighting and sound are implied everywhere.</li>
             <li><b>UML.</b> Each category became a class; a House is composed of Locations, a Location of Encounter slots, and an Encounter of one element per category. Visitors are separate agents that react to encounters.</li>
             <li><b>Behaviour.</b> I gave encounters no fixed “scare value”. They only emit stimuli; the visitor’s state decides the result, which is where emergence comes from.</li>
-            <li><b>Sample house.</b> The 12-encounter example from my guide is built in as a preset (the sample corridor has four encounters, so it is modelled as two 2-slot corridors).</li>
         </ol>
 
         <h2>UML class diagram</h2>
@@ -64,25 +64,25 @@
                     <marker id="arr" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M1 1L9 5L1 9" fill="none" stroke="#c99"/></marker>
                 </defs>
                 <g stroke="#c99" fill="#171212">
-                    <rect x="20" y="30" width="180" height="100"/><rect x="250" y="30" width="190" height="100"/><rect x="215" y="200" width="110" height="70"/><rect x="350" y="200" width="110" height="70"/>
+                    <rect x="20" y="30" width="180" height="100"/><rect x="250" y="30" width="190" height="100"/><rect x="215" y="200" width="110" height="70"/><rect x="350" y="200" width="110" height="70"/><rect x="283" y="290" width="110" height="60"/>
                     <rect x="520" y="30" width="210" height="130"/><rect x="800" y="30" width="200" height="90"/>
                     <rect x="20" y="250" width="200" height="150"/>
                     <rect x="520" y="260" width="115" height="130"/><rect x="645" y="260" width="115" height="130"/><rect x="770" y="260" width="115" height="130"/><rect x="895" y="260" width="115" height="130"/>
                 </g>
                 <g stroke="#c99" fill="none">
                     <line x1="200" y1="80" x2="250" y2="80" marker-start="url(#dia)"/><line x1="440" y1="80" x2="520" y2="80" marker-start="url(#dia)"/>
-                    <path d="M270 200V150H345V132" marker-end="url(#tri)"/><path d="M405 200V150H345V132" marker-end="url(#tri)"/>
-                    <path d="M220 320H480V110H520" marker-end="url(#arr)"/>
+                    <path d="M270 200V150H345V132" marker-end="url(#tri)"/><path d="M405 200V150H345V132" marker-end="url(#tri)"/><path d="M338 290V150H345V132" marker-end="url(#tri)"/>
+                    <path d="M220 380H480V110H520" marker-end="url(#arr)"/>
                     <path d="M625 160V210H577V260M625 210H702V260M625 210H827V260M625 210H952V260" marker-start="url(#dia)"/>
                 </g>
                 <g>
                     <text x="28" y="48" font-weight="bold">House</text><text x="28" y="68">- segments: Location[1..5]:</text><text x="28" y="84">- doorBlocks: Encounter?[n+1]:</text><text x="28" y="100">+ slots()</text>
-                    <text x="258" y="48" font-weight="bold">«abstract» Location</text><text x="258" y="68">- slots: Encounter[2|4]:</text><text x="258" y="84">+ entrance, exit (doorways)</text><text x="258" y="100">+ slotPosition(i)</text>
-                    <text x="228" y="222" font-weight="bold">Room</text><text x="228" y="240">capacity = 4</text><text x="363" y="222" font-weight="bold">Corridor</text><text x="363" y="240">capacity = 2</text>
-                    <text x="528" y="48" font-weight="bold">Encounter</text><text x="528" y="68">- kind: scare|cue|block|turn</text><text x="528" y="84">- core, concealment</text><text x="528" y="100">- visual, sound</text><text x="528" y="116">- open, ring, totalFear</text><text x="528" y="132">+ power(): number</text><text x="528" y="148">+ draw() / sanitize()</text>
+                    <text x="258" y="48" font-weight="bold">«abstract» Location</text><text x="258" y="68">- slots: floor + wall Encounters</text><text x="258" y="84">+ entrance, exit (doorways)</text><text x="258" y="100">+ exitTurn: left|straight|right</text><text x="258" y="116">+ specs(): slot positions</text>
+                    <text x="228" y="222" font-weight="bold">Room</text><text x="228" y="240">4 floor + 8 wall</text><text x="363" y="222" font-weight="bold">Corridor</text><text x="363" y="240">2 wall slots</text><text x="296" y="312" font-weight="bold">Corner</text><text x="296" y="330">2 wall slots</text>
+                    <text x="528" y="48" font-weight="bold">Encounter</text><text x="528" y="68">- kind: scare|cue|block</text><text x="528" y="84">- core, concealment</text><text x="528" y="100">- visual, sound</text><text x="528" y="116">- open, ring, totalFear</text><text x="528" y="132">+ power(): number</text><text x="528" y="148">+ draw() / sanitize()</text>
                     <text x="808" y="48" font-weight="bold">«abstract» Element</text><text x="808" y="68">+ name</text><text x="808" y="84">+ draw()</text><text x="808" y="100">extended by all 4 categories</text>
                     <text x="28" y="268" font-weight="bold">Visitor (agent)</text><text x="28" y="288">- fear, bravery</text><text x="28" y="304">- anticipation, focus</text><text x="28" y="320">- numbness, seen{core:n}</text><text x="28" y="336">- fled: bool</text><text x="28" y="356">+ update()</text><text x="28" y="372">+ react(encounter)</text><text x="28" y="388">+ spreadFear()</text>
-                    <text x="300" y="312" fill="#c99">reacts to</text>
+                    <text x="300" y="372" fill="#c99">reacts to</text>
                     <text x="528" y="280" font-weight="bold">Core</text><text x="528" y="300">Actor</text><text x="528" y="316">Installation</text><text x="528" y="332">Stationary</text>
                     <text x="653" y="280" font-weight="bold">Concealment</text><text x="653" y="300">None</text><text x="653" y="316">Door</text><text x="653" y="332">Screen</text><text x="653" y="348">Shutter</text><text x="653" y="364">Display</text>
                     <text x="778" y="280" font-weight="bold">AddOn</text><text x="778" y="300">Darkness</text><text x="778" y="316">FlashingLight</text><text x="778" y="332">SuddenSound</text>
@@ -98,13 +98,15 @@
         <h2>Emergent properties</h2>
         <p>No encounter has a built-in “scariness”. The same encounter can be a great scare or a wasted prop depending on its neighbours:</p>
         <ul style="list-style: none; padding-left: 0;">
-            <li><b>Misdirection.</b> A visitor watching a Visual Cue is far more vulnerable to a jump scare that follows (the sample’s #3 → #4).</li>
+            <li><b>Misdirection.</b> A visitor watching a Visual Cue is far more vulnerable to a jump scare that follows.</li>
             <li><b>Anticipation.</b> Visual Blocks and Direction Changes raise anticipation, which multiplies later scares.</li>
+            <li><b>Blind side.</b> Visitors cannot see into the location after a turn (a room's side exit or a corner) until they have turned, so every scare inside it hits harder. The same scares after a straight doorway get nothing extra.</li>
+            <li><b>Space trade-offs.</b> A floor scare and the wall scares next to it rule each other out, and a tight layout covers hidden areas, so the designer trades open-floor scares against hidden ones.</li>
             <li><b>Habituation.</b> Repeating the same core type makes it less effective for that visitor.</li>
             <li><b>Numbness.</b> Scares packed too tightly dull the visitor’s response.</li>
             <li><b>Contagion and panic.</b> Fear spreads between nearby visitors; a visitor who panics at 100 runs out, so every later encounter is wasted on them.</li>
         </ul>
-        <p class="mut">Try: ten jump scares in a row versus the sample house, and compare the bars.</p>
+        <p class="mut">Try: ten jump scares in a row versus a house that mixes cues, visual blocks and direction changes, and compare the bars.</p>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/p5@2.3.4/lib/p5.min.js"></script>
