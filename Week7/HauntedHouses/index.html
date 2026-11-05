@@ -36,6 +36,10 @@
     <button id="btnStart" onclick="startTest()">Start Test</button>
     <button id="btnPause" onclick="togglePause()" title="Pause or resume the test (Space)">Pause</button>
     <button id="btnEnd" onclick="endTest()">End Test</button>
+    <!-- Background music (Music/Music1.mp3). Browsers only play
+         sound after a click, so it starts from this button. -->
+    <button id="btnMusic" onclick="toggleMusic()" title="Turn the background music on or off" style="float:right">♪ Music: Off</button>
+    <audio id="bgm" src="Music/Music1.mp3" loop preload="auto"></audio>
 </div>
 
         <!-- The simulator window, with the statistics beside it so both fit on one screen -->

@@ -430,6 +430,23 @@ function endTest() {
     summary();
 }
 
+// Background music (the <audio id="bgm"> in index.html), on or off. It keeps
+// playing (looping) whatever happens in the simulator.
+function toggleMusic() {
+    const music = document.getElementById('bgm'),
+        btn = document.getElementById('btnMusic');
+    if (music.paused) {
+        music.volume = .4;
+        music.play()
+            .then(() => btn.textContent = '♪ Music: On')
+            .catch(() => note("Can't play the music: the file Music/Music1.mp3 is missing."));
+    } else {
+        music.pause();
+        btn.textContent = '♪ Music: Off';
+    }
+    btn.blur(); // so Space (pause the test) doesn't press this button
+}
+
 // "flashing" -> "Flashing"
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1) }
 
