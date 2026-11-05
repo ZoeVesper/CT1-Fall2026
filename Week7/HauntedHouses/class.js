@@ -3,7 +3,11 @@ const CORES = ['actor', 'installation', 'stationary'];
 const CONC = ['none', 'door', 'screen', 'shutter', 'display'];
 const VIS = ['none', 'darkness', 'flashing'];
 const SND = ['none', 'sudden'];
-const BASE = { actor: 38, installation: 44, stationary: 22 };
+const BASE = { actor: 44, installation: 38, stationary: 22 };
+// Fear at which a visitor panics and runs for an exit. Tuned so that, over many
+// randomised houses with visitors arriving for a minute, about 8-10% panic.
+const PANIC = 325;
+const BRAVE = [.1, .7]; // range of visitor bravery (cuts the fear of each scare by up to 60%)
 
 class Encounter {
     constructor() {
@@ -782,7 +786,7 @@ class Visitor {
             id,
             y,
             sp,
-            brave: random(.1, .7),
+            brave: random(BRAVE[0], BRAVE[1]),
             fear: 0,
             peak: 0,
             ant: 0,
@@ -878,8 +882,7 @@ class Visitor {
             }
         }
 
-        // --- UPDATED: Changed 100 to 500 ---
-        if (this.fear >= 500 && !this.fled) {
+        if (this.fear >= PANIC && !this.fled) {
             this.fled = true;
             note("Visitor " + this.id + " panics and runs for the nearest exit!");
         }
@@ -939,10 +942,9 @@ class Visitor {
         translate(this.x, this.y);
         noStroke();
         
-        // Update the progress ratio to 500
-        let progress = min(1, this.fear / 500);
+        let progress = min(1, this.fear / PANIC);
         
-        // Color changes gradually from green to red as they approach 500
+        // Color changes gradually from green to red as they approach PANIC
         fill(lerpColor(color(120, 220, 140), color(255, 50, 50), progress));
         
         // If they have actually fled (panic state), they turn yellow
@@ -953,13 +955,13 @@ class Visitor {
         ellipse(-2.5, -1, 2, 2);
         ellipse(2.5, -1, 2, 2);
         
-        // The "eye" height/size also scales with the new 500 threshold
+        // The "eye" height/size also scales with the PANIC threshold
         ellipse(0, 3, 3, this.fear > 250 ? 5 : 1); 
         
         noFill();
         stroke(255, 60, 60);
         strokeWeight(2);
-        // The arc now fills based on the 500 threshold
+        // The arc now fills based on the PANIC threshold
         arc(0, 0, 22, 22, -HALF_PI, -HALF_PI + TWO_PI * progress);
 
         // Just turned a corner: a small amber turn arrow above the head

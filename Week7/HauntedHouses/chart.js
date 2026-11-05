@@ -53,7 +53,7 @@ Object.entries(PICTURES).forEach(([id, file]) =>
     ICONS[id] = FRAME(`<image href="Icon/${file}.png" x="3" y="3" width="50" height="50"/>`));
 
 const SHARED = {
-    core: 'Repeating the same core weakens it for that visitor: ÷ (1 + 0.5 × times seen).',
+    core: 'Repeating the same core weakens it for that visitor.',
     conc: 'Any concealment adds +12 strength. Wall slots sit in a hidden staff area (dashed box) and need one, shown as an opening in the wall (orange line).',
 };
 
@@ -66,9 +66,9 @@ const CHART = [
     },
     {
         cat: 'Core', items: [
-            { id: 'actor', name: 'Actor', tip: 'A live performer. Base strength 38. ' + SHARED.core },
-            { id: 'installation', name: 'Installation', tip: 'A mechanical figure. The strongest core: base strength 44. ' + SHARED.core },
-            { id: 'stationary', name: 'Stationary', tip: 'A still prop. The weakest core: base strength 22. It can’t move, so it can’t use a Screen. ' + SHARED.core },
+            { id: 'actor', name: 'Actor', tip: 'A live performer. Base strength ' + BASE.actor + '. ' + SHARED.core },
+            { id: 'installation', name: 'Installation', tip: 'A mechanical figure. Base strength ' + BASE.installation + '. ' + SHARED.core },
+            { id: 'stationary', name: 'Stationary', tip: 'A still prop. Base strength ' + BASE.stationary + '. It can’t move, so it can’t use a Screen. ' + SHARED.core },
         ]
     },
     {
@@ -87,12 +87,12 @@ const CHART = [
     },
     {
         cat: 'Audio add-on', items: [
-            { id: 'sudden', name: 'Sudden sound', tip: 'Scares only. +14 strength, the biggest single add-on.' },
+            { id: 'sudden', name: 'Sudden sound', tip: 'Scares only. +14 strength.' },
         ]
     },
     {
         cat: 'Optional strategy', items: [
-            { id: 'block', name: 'Visual block', tip: 'A curtain on a doorway (click a doorway on the dashed path); uses no scare slot. Raises anticipation +10, which multiplies every later scare × (1 + anticipation / 100). Scares and cues in the first 100 units behind it ×1.2 (red outline).' },
+            { id: 'block', name: 'Visual block', tip: 'A curtain on a doorway (click a doorway on the dashed path); uses no scare slot. Raises anticipation +10, which makes every later scare stronger. Scares and cues in the first 100 units behind it ×1.2 (red outline).' },
             { id: 'cue', name: 'Visual cue', tip: 'Built from three other categories: a core + concealment (a Display, or none on the floor) + visual add-on (optional Flashing). Adds +4 fear (+8 if flashing), and the visitor stares at it (a green pulse on the map): scares in the next 150 frames ×1.7 (misdirection).' },
             { id: 'turn', name: 'Direction change', tip: 'A room’s side exit, or a Corner (turns 90°; 2 wall slots). Raises anticipation +6. After a Corner, scares and cues in the first 100 units of the next location ×1.5: the blind side (amber outline on those slots). A room turns in its centre, too far away for that.' },
         ]
