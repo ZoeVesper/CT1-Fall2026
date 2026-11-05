@@ -10,15 +10,16 @@ const VIEW_W = 900,
 let house = new House(),
     sel = null,     // selected slot (Encounter)
     selLoc = null,  // selected Room/Corridor/Corner
-    group = [],
+    group = [],     // visitors in or near the house
+    finished = [],  // visitors who have left (kept for the end-of-test summary)
+    nextId = 1,
     running = false,
     paused = false,
     spawnTimer = 0,
     logs = [],
     W = 960,
     H = Math.round(960 * VIEW_H / VIEW_W), // 725
-    LAYOUT_H = H, // the house fills the canvas (fear per encounter is in the table below it)
-    MAX_VISITORS = 10;
+    LAYOUT_H = H; // the house fills the canvas (fear per encounter is in the table below it)
 
 const NAMES = { room: 'Room', corridor: 'Corridor', corner: 'Corner' };
 function locName(i) { return NAMES[house.segs[i].kind] + ' ' + (i + 1) }
@@ -160,6 +161,8 @@ function stopRun() {
     running = false;
     paused = false;
     group = [];
+    finished = [];
+    nextId = 1;
     document.getElementById('btnPause').textContent = "Pause";
     document.getElementById('stats').textContent = 'No run yet.';
 }
@@ -233,9 +236,8 @@ function startTest() {
     });
     house.segs.forEach(g => g.turnLogged = false);
 
-    for (let i = 0; i < 5; i++) {
-        group.push(new Visitor(-i * 40, i + 1, 0, 1.2));
-    }
+    // the first visitor enters straight away; the rest follow one by one (see draw)
+    group.push(new Visitor(-20, nextId++, 0, 1.2));
     spawnTimer = 0;
     running = true;
     note("Test Started. Visitors entering...");
@@ -558,18 +560,22 @@ function draw() {
 
     if (running && !paused) {
         spawnTimer++;
-        // Keep sending visitors in until the group reaches MAX_VISITORS
-        if (spawnTimer > 120 && group.length < MAX_VISITORS) {
-            group.push(new Visitor(-20, group.length + 1, 0, 1.2));
+        // A new visitor every 2 seconds (120 frames), at the same pace from start
+        // to finish, until the test is paused or ended
+        if (spawnTimer >= 120) {
+            group.push(new Visitor(-20, nextId++, 0, 1.2));
             spawnTimer = 0;
         }
         group.forEach(v => v.update(list, group));
 
+        // Visitors who have left (by an exit, or walked well past the house exit)
+        // move to `finished`, so the crowd on the map doesn't keep growing
         const end = house.route(L).endD;
-        if (group.every(v => v.out || v.d > end)) {
-            running = false;
-            summary();
-        }
+        group = group.filter(v => {
+            const gone = v.out || v.d > end + 120;
+            if (gone) finished.push(v);
+            return !gone;
+        });
     }
 
     group.forEach(v => {
@@ -594,7 +600,9 @@ function draw() {
 
     if (running && !paused && frameCount % 10 == 0) {
         const f = group.length > 0 ? group.reduce((a, v) => a + v.fear, 0) / group.length : 0;
-        document.getElementById('stats').textContent = 'Running… average fear ' + f.toFixed(0) + ' | panicked: ' + group.filter(v => v.fled).length;
+        const all = [...finished, ...group];
+        document.getElementById('stats').textContent = 'Running… visitors ' + all.length + ' | average fear ' + f.toFixed(0) +
+            ' | panicked: ' + all.filter(v => v.fled).length;
     }
 }
 
@@ -645,12 +653,14 @@ function updateScareTable(list) {
 }
 
 function summary() {
-    if (group.length === 0) {
+    const all = [...finished, ...group];
+    if (all.length === 0) {
         document.getElementById('stats').textContent = 'Test ended with no visitors.';
         return;
     }
-    const p = group.reduce((a, v) => a + v.peak, 0) / group.length;
-    document.getElementById('stats').textContent = 'Done. Average peak fear ' + p.toFixed(0) + ' | panicked: ' + group.filter(v => v.fled).length + '/' + group.length;
+    const p = all.reduce((a, v) => a + v.peak, 0) / all.length;
+    document.getElementById('stats').textContent = 'Done. ' + all.length + ' visitors | average peak fear ' + p.toFixed(0) +
+        ' | panicked: ' + all.filter(v => v.fled).length + '/' + all.length;
 }
 
 function mousePressed() {

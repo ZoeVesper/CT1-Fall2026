@@ -22,17 +22,12 @@ body {
     font: 16px/1.6 Georgia, "Times New Roman", serif;
 }
 
+/* One width for the whole page: title, cards, simulator, chart and text all
+   share the same left and right edges */
 main {
-    max-width: 1440px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 24px 16px 60px;
-}
-
-/* Text and cards keep a readable width; only the simulator stage uses the full width */
-main > :not(.stage) {
-    max-width: 1000px;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 /* Simulator stage: canvas on the left, statistics panel on the right */
