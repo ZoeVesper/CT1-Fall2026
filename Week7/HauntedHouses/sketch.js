@@ -31,20 +31,21 @@ function note(s) {
 }
 
 // Used slots whose hidden area would be lost if the house changed to segs
+// (slots of a location that segs leaves out don't count: they go with it)
 function lostSlots(segs) {
     const after = house.slotInfo(segs);
-    return house.slotInfo().filter(q => q.space && q.e.kind != 'empty' &&
+    return house.slotInfo().filter(q => q.space && q.e.kind != 'empty' && segs.includes(house.segs[q.loc]) &&
         !after.some(a => a.e === q.e && a.space));
 }
 
 // Why the house can't change to segs (null if it can): two locations would
 // overlap, a location would stand across the way in or out, it would leave the
 // canvas, or a used wall slot would lose its hidden area.
-function layoutProblem(segs) {
+function layoutProblem(segs, checkSlots = true) {
     if (house.collides(segs)) return "No room for that: it would run into another part of the house.";
     if (house.blocksWay(segs)) return "No room for that: the way into or out of the house would run into another part of it.";
     if (!fitsCanvas(segs)) return "No room for that: it would go off the edge of the map.";
-    if (lostSlots(segs).length) return "That would cover the hidden area behind a wall slot that is in use. Clear that slot first.";
+    if (checkSlots && lostSlots(segs).length) return "That would cover the hidden area behind a wall slot that is in use. Clear that slot first.";
     return null;
 }
 
@@ -136,18 +137,6 @@ function newDoor() {
     return e;
 }
 
-function undo() {
-    if (house.segs.length) {
-        house.segs.pop();
-        house.doors.pop();
-        if (!house.segs.length) house.doors = [];
-        house.updateExits();
-        noteAdded(fixExitRule().added); // a shorter house may need one somewhere else
-    }
-    sel = null;
-    edit();
-}
-
 // Put a visual block on doorways ks
 function blk(h, ks) {
     ks.forEach(k => {
@@ -167,7 +156,194 @@ function stopRun() {
     document.getElementById('stats').textContent = 'No run yet.';
 }
 
+// Randomise, four ways (encounters = scares, cues and visual blocks):
+//   randomLayout()     - Layout: a new random layout with no encounters (the player fills it)
+//   randomEncounters() - Encounters: keep the player's layout, random encounters everywhere
+//   randomHouse()      - All: a new random layout with random encounters
+//   randomSelected()   - Selected: random encounter(s) in the selected slot or location
+
+// The Randomise ▾ menu in Build: run the chosen action, then show the menu's
+// name again, so the same action can be picked twice in a row
+function runMenu(menu, actions) {
+    const run = actions[menu.value];
+    menu.value = '';
+    if (run) run();
+}
+
+function randomise(menu) {
+    runMenu(menu, { layout: randomLayout, encounters: randomEncounters, all: randomHouse, selected: randomSelected });
+}
+
+// "Clear Encounter" in the selection panel: empty the selected slot, or take the
+// visual block off the selected doorway
+function removeSelected() {
+    const q = selInfo();
+    if (q) {
+        if (q.e.kind == 'empty') {
+            note("That slot is already empty.");
+            return;
+        }
+        stopRun();
+        const was = q.e.kind == 'block' ? 'visual block' : q.e.kind;
+        q.e.kind = 'empty';
+        q.e.sanitize();
+        q.e.total = q.e.hits = 0;
+        edit();
+        note("Removed the " + was + (q.door !== undefined && q.door !== null ? " from the doorway." : " in " + locName(q.loc) + "."));
+        return;
+    }
+}
+
+// "Clear Encounters" in a location's panel: empty every slot of the selected
+// location (the location itself stays)
+function clearLocEncounters() {
+    const i = house.segs.indexOf(selLoc);
+    if (i < 0) return;
+    stopRun();
+    let n = 0;
+    Object.values(selLoc.enc).forEach(e => {
+        if (e.kind == 'empty') return;
+        e.kind = 'empty';
+        e.sanitize();
+        e.total = e.hits = 0;
+        n++;
+    });
+    edit();
+    note(n ? "Removed " + n + " encounter" + (n == 1 ? "" : "s") + " in " + locName(i) + "." : locName(i) + " has no encounters.");
+}
+
+// Take location i out of the house. The one before it then connects straight
+// to the one after it, the same way as when building (the doorway between them
+// keeps its visual block, if any). Refused, with the reason, if they can't be
+// joined like that: the rest of the house would run into itself, block the way
+// in or out, leave the map or cover a used wall slot's hidden area, or no wall
+// would be left for the emergency exits that every 3 locations need.
+// A used wall slot whose hidden area the joined-up house would cover is
+// emptied (and named in the log) instead of refusing.
+function removeLoc(i) {
+    const name = locName(i), gone = house.segs[i];
+    const joins = i > 0 && i < house.segs.length - 1;
+    const segs = house.segs.filter((_, k) => k != i);
+    // the build message, reworded: "No room for that: it would…" -> "the rest of the house would…"
+    let p = segs.length ? layoutProblem(segs, false) : null;
+    if (p) {
+        p = p.replace(/^No room for that: it/, 'the rest of the house').replace(/^No room for that: /, '').replace(/^That/, 'that');
+        note("Can't remove " + name + ": " + (joins ? locName(i - 1) + " and " + locName(i + 1) + " can't be joined, " : "") + p);
+        return false;
+    }
+    const lost = segs.length ? lostSlots(segs) : [];
+    stopRun();
+    const old = { segs: house.segs, doors: house.doors.slice(), flags: house.segs.map(s => s.emergency) };
+    house.segs = segs;
+    house.doors.splice(i + 1, 1); // the removed location's exit doorway
+    if (!segs.length) house.doors = [];
+    const fix = fixExitRule();
+    if (!fix.ok) {
+        house.segs = old.segs;
+        house.doors = old.doors;
+        house.segs.forEach((s, k) => s.emergency = old.flags[k]);
+        note("Can't remove " + name + ": there would be 3 locations in a row with no clear wall for an emergency exit.");
+        return false;
+    }
+    // empty the slots that lost their hidden area (named by their location as it is now)
+    const cleared = lost.map(q => {
+        q.e.kind = 'empty';
+        q.e.sanitize();
+        q.e.total = q.e.hits = 0;
+        return locName(q.loc > i ? q.loc - 1 : q.loc);
+    });
+    if (selLoc === gone) selLoc = null;
+    sel = null;
+    house.updateExits();
+    edit();
+    note("Removed " + name + (joins ? ": the locations on either side are now joined." : "."));
+    if (cleared.length) note("Emptied " + cleared.length + " wall slot" + (cleared.length == 1 ? "" : "s") +
+        " whose hidden area is now covered: in " + [...new Set(cleared)].join(', ') + ".");
+    noteAdded(fix.added);
+    return true;
+}
+
 function randomHouse() {
+    randomLayout(false);
+    fillSlots(() => true);
+    blk(house, house.doors.map((_, k) => k).filter(() => random() < .4));
+    edit();
+    note("New random layout with random encounters.");
+}
+
+function randomEncounters() {
+    if (!house.segs.length) {
+        note("Build a layout first (or Randomise → All).");
+        return;
+    }
+    stopRun();
+    house.doors.forEach(d => { d.kind = 'empty'; d.sanitize(); });
+    fillSlots(() => true);
+    blk(house, house.doors.map((_, k) => k).filter(() => random() < .4));
+    sel = null;
+    edit();
+    note("New random encounters for this layout.");
+}
+
+// Randomise → Selected: a selected slot gets a new random encounter; a selected
+// location gets new random encounters in all of its slots
+function randomSelected() {
+    const q = selInfo();
+    if (q && q.door !== undefined && q.door !== null) {
+        note("A doorway only holds a visual block: select a slot or a location to randomise.");
+        return;
+    }
+    if (q) {
+        if (q.blockedBy && q.blockedBy.length) {
+            note("This slot is blocked by the " + q.blockedBy[0].place + " slot next to it.");
+            return;
+        }
+        stopRun();
+        randomEnc(q.e);
+        q.e.total = q.e.hits = 0;
+        edit();
+        note("New random " + q.e.kind + " in " + locName(q.loc) + ".");
+        return;
+    }
+    const i = selLoc ? house.segs.indexOf(selLoc) : -1;
+    if (i < 0) {
+        note("Select a slot, or a room, corridor or corner (click inside it on the map), first.");
+        return;
+    }
+    stopRun();
+    fillSlots(q => q.loc === i);
+    edit();
+    note("New random encounters in " + locName(i) + ".");
+}
+
+// Give a slot a random scare or cue
+function randomEnc(e) {
+    e.kind = random(['scare', 'scare', 'cue']);
+    e.core = random(CORES);
+    e.conc = random(e.concOptions());
+    e.vis = random(VIS);
+    e.snd = random(SND);
+    e.sanitize();
+}
+
+// Empty the slots that pick(q) chooses, then fill them in random order,
+// skipping any that a neighbouring slot already rules out
+function fillSlots(pick) {
+    const mine = house.slotInfo().filter(q => q.door === undefined || q.door === null).filter(pick);
+    mine.forEach(q => {
+        q.e.kind = 'empty';
+        q.e.sanitize();
+        q.e.total = q.e.hits = 0;
+    });
+    shuffle(mine).forEach(q => {
+        const info = house.slotInfo().find(o => o.e === q.e);
+        if (!info.space || info.blockedBy.length || random() < .35) return;
+        randomEnc(q.e);
+    });
+}
+
+// announce = called on its own from the page (a layout with empty slots)
+function randomLayout(announce = true) {
     stopRun();
     house = new House();
     sel = selLoc = null;
@@ -194,20 +370,10 @@ function randomHouse() {
     house.segs = best;
     house.doors = best.length ? [newDoor(), ...best.map(() => newDoor())] : [];
     house.updateExits();
-    // Fill slots in random order, skipping any that a neighbour already rules out
-    shuffle(house.slotInfo()).forEach(q => {
-        const info = house.slotInfo().find(o => o.e === q.e);
-        if (!info.space || info.blockedBy.length || random() < .35) return;
-        q.e.kind = random(['scare', 'scare', 'cue']);
-        q.e.core = random(CORES);
-        q.e.conc = random(q.e.concOptions());
-        q.e.vis = random(VIS);
-        q.e.snd = random(SND);
-        q.e.sanitize();
-    });
-    blk(house, house.doors.map((_, k) => k).filter(() => random() < .4));
-    selLoc = null;
-    edit();
+    if (announce) {
+        edit();
+        note("New random layout with no encounters, ready for yours.");
+    }
 }
 
 function startTest() {
@@ -275,54 +441,53 @@ function selInfo() {
     return house.slotInfo().find(q => q.e === sel) || null;
 }
 
+// The selection panel: settings on the left, its buttons on the right, the
+// same layout (and height) for a location, a slot, a doorway or nothing
 function edit() {
     const el = document.getElementById('ed');
+    const show = (main, actions = '') =>
+        el.innerHTML = `<div class="ed-main">${main}</div>` + (actions ? `<div class="ed-actions">${actions}</div>` : '');
     if (selLoc && !house.segs.includes(selLoc)) selLoc = null;
     if (selLoc) {
         const i = house.segs.indexOf(selLoc), g = selLoc;
-        if (g.kind == 'room') {
-            el.innerHTML = `<b>${locName(i)}</b> &nbsp; <label style="color:inherit">Exit
-                <select onchange="setExit(this.value)">${opts(['straight', 'left', 'right'], g.exit)}</select></label>`;
-        } else if (g.kind == 'corner') {
-            el.innerHTML = `<b>${locName(i)}</b> &nbsp; <label style="color:inherit">Turns
-                <select onchange="setSide(this.value)">${opts(['left', 'right'], g.side)}</select></label>`;
-        } else {
-            el.innerHTML = `<b>${locName(i)}</b>`;
-        }
+        let h = `<b>${locName(i)}</b>`;
+        if (g.kind == 'room')
+            h += `<label>Exit <select onchange="setExit(this.value)">${opts(['straight', 'left', 'right'], g.exit)}</select></label>`;
+        else if (g.kind == 'corner')
+            h += `<label>Turns <select onchange="setSide(this.value)">${opts(['left', 'right'], g.side)}</select></label>`;
         // Emergency exit option (placed automatically where its wall is clear)
         const noSpot = g.emergency && !house.exits()[i];
-        el.innerHTML += ` &nbsp; <label style="color:inherit"><input type="checkbox" onchange="setEmergency(this.checked)"
-            ${g.emergency ? 'checked' : ''}> Emergency Exit</label>${noSpot ? ' <span style="color:#dc5050">No clear wall for it</span>' : ''}`;
-        return;
+        h += `<label><input type="checkbox" onchange="setEmergency(this.checked)" ${g.emergency ? 'checked' : ''}> Emergency Exit</label>` +
+            (noSpot ? '<span style="color:#dc5050">No clear wall for it</span>' : '');
+        return show(h, `<button onclick="clearLocEncounters()">Clear Encounters</button>
+            <button onclick="removeLoc(${i})">Remove ${NAMES[g.kind]}</button>`);
     }
     const q = selInfo();
     if (!q) {
         sel = null;
-        el.textContent = 'Select a slot, room or doorway…';
-        return;
+        return show('Select a slot, room or doorway…');
     }
     const e = q.e;
     if (q.door !== undefined && q.door !== null) {
-        el.innerHTML = e.kind == 'block'
-            ? '<b>Visual Block</b> &nbsp; <button onclick="rmBlock()">Remove</button>'
-            : '<b>Doorway</b> &nbsp; <button onclick="setF(\'kind\',\'block\')">Add Visual Block</button>';
-        return;
+        return e.kind == 'block'
+            ? show('<b>Visual Block</b>', '<button onclick="removeSelected()">Clear Encounter</button>')
+            : show('<b>Doorway</b>', '<button onclick="setF(\'kind\',\'block\')">Add Visual Block</button>');
     }
-    if (q.blockedBy && q.blockedBy.length) {
-        el.innerHTML = `<b>Blocked</b> by the ${q.blockedBy[0].place} slot next to it`;
-        return;
-    }
+    if (q.blockedBy && q.blockedBy.length)
+        return show(`<b>Blocked</b> by the ${q.blockedBy[0].place} slot next to it`);
     const where = q.place == 'wall' ? '<b>Wall Slot</b>' : '<b>Floor Slot</b>';
     const slot = house.slots().find(o => o.e === e);
-    let h = `${where}${slot && slot.blind ? ` <span style="color:#ffaa00">×${BLIND}</span>` : ''}` +
-        `${slot && slot.behindBlock ? ` <span style="color:#dc5050">×${BLOCK}</span>` : ''} &nbsp; <label>Type <select onchange="setF('kind',this.value)">${opts(e.kindOptions(), e.kind)}</select></label>`;
+    let h = where + (slot && slot.blind ? ` <span style="color:#ffaa00">×${BLIND}</span>` : '') +
+        (slot && slot.behindBlock ? ` <span style="color:#dc5050">×${BLOCK}</span>` : '') +
+        `<label>Type <select onchange="setF('kind',this.value)">${opts(e.kindOptions(), e.kind)}</select></label>`;
     if (e.kind == 'scare' || e.kind == 'cue') {
         h += `<label>Core <select onchange="setF('core',this.value)">${opts(CORES, e.core)}</select></label>
          <label>Concealment <select onchange="setF('conc',this.value)">${opts(e.concOptions(), e.conc)}</select></label>
          <label>Visual <select onchange="setF('vis',this.value)">${opts(e.kind == 'cue' ? ['none', 'flashing'] : VIS, e.vis)}</select></label>`;
         if (e.kind == 'scare') h += `<label>Sound <select onchange="setF('snd',this.value)">${opts(SND, e.snd)}</select></label>`;
+        return show(h, '<button onclick="removeSelected()">Clear Encounter</button>');
     }
-    el.innerHTML = h;
+    show(h);
 }
 
 // Change a setting of the selected location (a room's exit wall, a corner's side).
@@ -608,7 +773,8 @@ function draw() {
             noFill();
             stroke(255, 200, 0);
             strokeWeight(2);
-            ellipse(q.x, q.y, 30, 30);
+            // same rounded square as a selected visual block on a doorway
+            rect(q.x - 31, q.y - 31, 62, 62, 6);
         }
     });
     pop();
@@ -725,12 +891,6 @@ function putBlock(k) {
     edit();
 }
 
-function rmBlock() {
-    if (sel) sel.kind = 'empty';
-    sel = null;
-    edit();
-}
-
 function clearHouse() {
     stopRun();
     house = new House();
@@ -740,19 +900,21 @@ function clearHouse() {
     document.getElementById('log').innerHTML = '';
 }
 
-// Empty every slot that holds a scare or cue; the layout, visual blocks and
-// emergency exits stay as they are
+// Empty every slot and doorway: scares, cues and visual blocks all go; the
+// layout and emergency exits stay as they are
 function clearEncounters() {
     stopRun();
     let n = 0;
-    house.segs.forEach(s => Object.values(s.enc).forEach(e => {
-        if (e.kind != 'scare' && e.kind != 'cue') return;
+    const all = [...house.doors];
+    house.segs.forEach(s => all.push(...Object.values(s.enc)));
+    all.forEach(e => {
+        if (e.kind == 'empty') return;
         e.kind = 'empty';
         e.sanitize();
         e.total = e.hits = 0;
         n++;
-    }));
+    });
     sel = null;
     edit();
-    note(n ? `Cleared ${n} scare${n == 1 ? '' : 's'} and cue${n == 1 ? '' : 's'}.` : 'No scares or cues to clear.');
+    note(n ? "Removed " + n + " encounter" + (n == 1 ? "" : "s") + " (scares, cues and visual blocks)." : "No encounters to remove.");
 }

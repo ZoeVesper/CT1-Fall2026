@@ -135,7 +135,44 @@ button, select {
     margin: 2px;
 }
 
-button:hover {
+/* Selection panel: settings on the left, buttons on the right; one height
+   (a button row) whatever is selected */
+#ed {
+    display: flex;
+    align-items: flex-start; /* buttons stay level with the first row */
+    gap: 12px;
+    box-sizing: border-box;
+    min-height: 59px;
+}
+
+#ed .ed-main {
+    flex: 1;
+    min-height: 41px; /* a button row */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+}
+
+#ed .ed-main label {
+    margin-right: 0;
+}
+
+#ed .ed-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 4px;
+}
+
+/* A menu among the buttons (Randomise): same size and look as a button */
+select.menu {
+    appearance: none;
+    -webkit-appearance: none;
+    line-height: inherit;
+    vertical-align: baseline;
+}
+
+button:hover, select.menu:hover {
     background: #3a2020;
 }
 

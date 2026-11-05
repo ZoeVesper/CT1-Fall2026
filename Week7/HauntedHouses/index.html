@@ -16,12 +16,17 @@
     <b>1. Build</b> &nbsp;
     <button onclick="addLoc(new Room())">+ Room</button>
     <button onclick="addLoc(new Corridor())">+ Corridor</button>
-    <button onclick="addLoc(new Corner('left'))">+ Corner ↰ left</button>
-    <button onclick="addLoc(new Corner('right'))">+ Corner ↱ right</button>
-    <button onclick="randomHouse()">Randomise</button>
-    <button onclick="undo()">Remove last</button>
-    <button onclick="clearEncounters()">Clear Scares &amp; Cues</button>
-    <button onclick="clearHouse()">Clear All</button>
+    <button onclick="addLoc(new Corner('left'))" title="Add a corner that turns left">+ Corner ↰</button>
+    <button onclick="addLoc(new Corner('right'))" title="Add a corner that turns right">+ Corner ↱</button>
+    <select class="menu" onchange="randomise(this)" title="Randomise the house, or part of it">
+        <option value="" selected>Randomise ▾</option>
+        <option value="layout" title="A new layout with no encounters, for you to fill">Layout</option>
+        <option value="encounters" title="Random scares, cues and visual blocks; the layout stays">Encounters</option>
+        <option value="all" title="A new layout with random encounters">All</option>
+        <option value="selected" title="A random encounter in the selected slot, or random encounters in every slot of the selected room, corridor or corner">Selected</option>
+    </select>
+    <button onclick="clearEncounters()" title="Clear every scare, cue and visual block; the layout stays">Clear All Encounters</button>
+    <button onclick="clearHouse()" title="Start again with an empty map">Reset All</button>
 
     <p class="mut" style="margin:10px 0 6px 0">Click a slot, a room, or a doorway on the dashed path. What everything does: <a href="#elements" style="color:#e55">Element chart</a>.</p>
 
