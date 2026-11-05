@@ -21,7 +21,7 @@ let house = new House(),
     H = Math.round(960 * VIEW_H / VIEW_W), // 736
     LAYOUT_H = H; // the house fills the canvas (fear per encounter is in the table below it)
 
-const NAMES = { room: 'Room', corridor: 'Corridor', corner: 'Corner' };
+const NAMES = { room: 'Room', corridor: 'Corridor', corner: 'Corridor' };
 function locName(i) { return NAMES[house.segs[i].kind] + ' ' + (i + 1) }
 
 function note(s) {
@@ -307,7 +307,7 @@ function randomSelected() {
     }
     const i = selLoc ? house.segs.indexOf(selLoc) : -1;
     if (i < 0) {
-        note("Select a slot, or a room, corridor or corner (click inside it on the map), first.");
+        note("Select a slot, or a room or corridor (click inside it on the map), first.");
         return;
     }
     stopRun();
@@ -653,7 +653,7 @@ function draw() {
         noStroke();
         textAlign(CENTER, CENTER);
         textSize(16);
-        text('Add a Room, Corridor or Corner to begin…', 20, 0); // centre of the empty map
+        text('Add a Room or Corridor to begin…', 20, 0); // centre of the empty map
     } else {
         // The visitors' route (dashed)
         const R = house.route(L);

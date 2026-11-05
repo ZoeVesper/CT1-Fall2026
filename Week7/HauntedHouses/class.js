@@ -869,8 +869,8 @@ class Visitor {
             if (!s.turnLogged) {
                 s.turnLogged = true;
                 const nxt = house.segs[i + 1];
-                note("Visitor " + this.id + " turns " + (s.exitTurn < 0 ? 'left' : 'right') + " in " + s.kind + " " + (i + 1) +
-                    (nxt && s.kind == 'corner' && nxt.kind != 'corner' ? ": the start of " + nxt.kind + " " + (i + 2) + " is on the blind side" : ""));
+                note("Visitor " + this.id + " turns " + (s.exitTurn < 0 ? 'left' : 'right') + " in " + NAMES[s.kind].toLowerCase() + " " + (i + 1) +
+                    (nxt && s.kind == 'corner' && nxt.kind != 'corner' ? ": the start of " + NAMES[nxt.kind].toLowerCase() + " " + (i + 2) + " is on the blind side" : ""));
             }
         });
 
