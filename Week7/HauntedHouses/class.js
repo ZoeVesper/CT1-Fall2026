@@ -4,9 +4,8 @@ const CONC = ['none', 'door', 'screen', 'shutter', 'display'];
 const VIS = ['none', 'darkness', 'flashing'];
 const SND = ['none', 'sudden'];
 const BASE = { actor: 44, installation: 38, stationary: 22 };
-// Fear at which a visitor panics and runs for an exit. Tuned so that, over many
-// randomised houses with visitors arriving for a minute, about 8-10% panic.
-const PANIC = 325;
+// Fear at which a visitor panics and runs for an exit.
+const PANIC = 275;
 const BRAVE = [.1, .7]; // range of visitor bravery (cuts the fear of each scare by up to 60%)
 
 class Encounter {
