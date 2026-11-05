@@ -1,10 +1,10 @@
 // Fixed map scale: the canvas shows VIEW_W x VIEW_H house units, whatever the
 // house looks like, and that is also the limit on how big a house can be.
-// Width: 6 rooms in 2 rows of 3 (874 units with their hidden areas, the queue
-// and the way out). Height: room (side exit) + corridor + corner + corridor +
-// room stacked up (664 units), plus the 8 px edge margin.
-const VIEW_W = 900,
-    VIEW_H = 680,
+// Width: 6 rooms in 2 rows of 3 (908 units with their hidden areas, slot
+// labels, the queue and the way out). Height: room (side exit) + corridor +
+// corner + corridor + room stacked up (692 units), plus the 8 px edge margin.
+const VIEW_W = 924,
+    VIEW_H = 708,
     EDGE = 8; // everything stays at least this many px inside the canvas edge
 
 let house = new House(),
@@ -18,7 +18,7 @@ let house = new House(),
     spawnTimer = 0,
     logs = [],
     W = 960,
-    H = Math.round(960 * VIEW_H / VIEW_W), // 725
+    H = Math.round(960 * VIEW_H / VIEW_W), // 736
     LAYOUT_H = H; // the house fills the canvas (fear per encounter is in the table below it)
 
 const NAMES = { room: 'Room', corridor: 'Corridor', corner: 'Corner' };
@@ -546,6 +546,8 @@ function draw() {
         } else {
             // Bonus outlines hug the icon (at most 5 units out), so they never
             // reach a neighbouring slot's icon, even one only a few units away.
+            // Labels go on the slot's outer side (labelSide / labelSpots).
+            const side = labelSide(q), spot = labelSpots(side);
             // Blind side: a scare just after a turn, amber outline + multiplier
             if (q.blind) {
                 noFill();
@@ -555,11 +557,10 @@ function draw() {
                 noStroke();
                 fill(255, 170, 0);
                 textSize(10);
-                textAlign(RIGHT, BOTTOM);
-                text('×' + BLIND, q.x + 30, q.y - 32);
+                textAlign(spot.blind[2], spot.blind[3]);
+                text('×' + BLIND, q.x + spot.blind[0], q.y + spot.blind[1]);
             }
-            // Behind a visual block: curtain-red outline (inside the amber one),
-            // multiplier top left
+            // Behind a visual block: curtain-red outline (inside the amber one)
             if (q.behindBlock) {
                 noFill();
                 stroke(200, 60, 60);
@@ -568,10 +569,10 @@ function draw() {
                 noStroke();
                 fill(220, 80, 80);
                 textSize(10);
-                textAlign(LEFT, BOTTOM);
-                text('×' + BLOCK, q.x - 30, q.y - 32);
+                textAlign(spot.block[2], spot.block[3]);
+                text('×' + BLOCK, q.x + spot.block[0], q.y + spot.block[1]);
             }
-            q.e.draw(q.x, q.y, q.n, q.e === sel);
+            q.e.draw(q.x, q.y, q.n, q.e === sel, side);
         }
     });
 

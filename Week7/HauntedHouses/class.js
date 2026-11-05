@@ -105,7 +105,8 @@ class Encounter {
         pop();
     }
 
-    draw(x, y, n, s) {
+    // side: which side of the icon its #n goes (see labelSide / labelSpots)
+    draw(x, y, n, s, side = null) {
         push();
         translate(x, y);
         if (s) {
@@ -173,8 +174,9 @@ class Encounter {
         noStroke();
         fill(150);
         textSize(10);
-        textAlign(CENTER, CENTER);
-        if (n) text('#' + n, 0, 38);
+        const [nx, ny, ah, av] = labelSpots(side).n;
+        textAlign(ah, av);
+        if (n) text('#' + n, nx, ny);
         pop();
     }
 }
@@ -189,6 +191,61 @@ const MAP_PICTURES = {
 };
 const IMG = {};
 const DISPLAY_ALPHA = 150; // how solid the Display picture is on the map (0 = invisible, 255 = solid)
+
+// Which side of its icon a slot's labels go ('up', 'down', 'left', 'right', or
+// null = the floor-slot layout). House.slotInfo works it out (q.side); a wall
+// slot's labels go away from its location unless a neighbour's icon is there.
+function labelSide(q) { return q.side !== undefined ? q.side : outerSide(q) }
+
+// The side of a wall slot facing away from its location (null for a floor slot)
+function outerSide(q) {
+    if (!q.opening) return null;
+    const ox = (q.opening[0] + q.opening[2]) / 2, oy = (q.opening[1] + q.opening[3]) / 2;
+    const dx = q.x - ox, dy = q.y - oy;
+    return abs(dx) > abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+}
+
+// Where the label text of a slot at (x, y) goes on a given side
+function labelText(x, y, side) {
+    if (side == 'up') return { x0: x - 30, y0: y - 44, x1: x + 30, y1: y - 31 };
+    if (side == 'left') return { x0: x - 60, y0: y - 19, x1: x - 31, y1: y + 19 };
+    if (side == 'right') return { x0: x + 31, y0: y - 19, x1: x + 60, y1: y + 19 };
+    return { x0: x - 30, y0: y + 31, x1: x + 30, y1: y + 44 }; // down (and the #n of a floor slot)
+}
+
+// Pick each slot's label side: its outer side first, then the two at right
+// angles, then the inner one; the first whose text lands on no other icon
+function chooseLabelSides(slots) {
+    const flip = { up: 'down', down: 'up', left: 'right', right: 'left' };
+    const turn = { up: ['left', 'right'], down: ['left', 'right'], left: ['up', 'down'], right: ['up', 'down'] };
+    slots.forEach(q => {
+        const out = outerSide(q);
+        if (!out) { q.side = null; return; }
+        const free = s => !slots.some(o => o !== q &&
+            overlaps(labelText(q.x, q.y, s), { x0: o.x - 26, y0: o.y - 26, x1: o.x + 26, y1: o.y + 26 }));
+        q.side = [out, ...turn[out], flip[out]].find(free) || out;
+    });
+}
+
+// Where a slot's labels sit, from its icon centre: [x, y, horizontal align,
+// vertical align] for the #n, the ×1.5 (blind side) and the ×1.2 (visual block)
+function labelSpots(side) {
+    switch (side) {
+        case 'up': return { n: [0, -38, CENTER, CENTER], blind: [30, -32, RIGHT, BOTTOM], block: [-30, -32, LEFT, BOTTOM] };
+        case 'down': return { n: [0, 38, CENTER, CENTER], blind: [30, 32, RIGHT, TOP], block: [-30, 32, LEFT, TOP] };
+        case 'left': return { n: [-32, 0, RIGHT, CENTER], blind: [-32, -13, RIGHT, CENTER], block: [-32, 13, RIGHT, CENTER] };
+        case 'right': return { n: [32, 0, LEFT, CENTER], blind: [32, -13, LEFT, CENTER], block: [32, 13, LEFT, CENTER] };
+        default: return { n: [0, 38, CENTER, CENTER], blind: [30, -32, RIGHT, BOTTOM], block: [-30, -32, LEFT, BOTTOM] };
+    }
+}
+
+// The area a slot's icon and its labels cover (for fitting the house on the map)
+function labelBox(q) {
+    const s = labelSide(q), x = q.x, y = q.y;
+    if (s == null) return { x0: x - 31, y0: y - 44, x1: x + 31, y1: y + 44 };
+    const t = labelText(x, y, s);
+    return { x0: min(t.x0, x - 31), y0: min(t.y0, y - 31), x1: max(t.x1, x + 31), y1: max(t.y1, y + 31) };
+}
 
 // Draw a picture centred, fitted inside w x h without stretching it
 function drawPic(img, w, h) {
@@ -541,6 +598,7 @@ class House {
             q.blockedBy = sp.blocks.map(b => out.find(o => o.loc == q.loc && o.id == b))
                 .filter(o => o && o.space && o.e.kind != 'empty');
         });
+        chooseLabelSides(out.filter(q => q.space)); // where each slot's labels go
         return out;
     }
 
@@ -595,7 +653,13 @@ class House {
         let b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
         const add = r => { b.x0 = min(b.x0, r.x0); b.y0 = min(b.y0, r.y0); b.x1 = max(b.x1, r.x1); b.y1 = max(b.y1, r.y1); };
         segs.forEach((s, i) => add(rectW(L.locs[i], s.body)));
-        this.slotInfo(segs).forEach(q => { if (q.region && q.space) add(q.region); });
+        this.slotInfo(segs).forEach(q => {
+            if (q.region && q.space) add(q.region);
+            // the slot icon with its labels (#n, ×1.5, ×1.2)
+            if (q.space) add(labelBox(q));
+        });
+        // doorways: a visual block's icon and the #n under it
+        L.doors.forEach(d => add({ x0: d.x - 26, y0: d.y - 26, x1: d.x + 26, y1: d.y + 44 }));
         add({ x0: -50, y0: -40, x1: 0, y1: 40 }); // queue before the entrance
         const dn = L.doors[L.doors.length - 1], [hx, hy] = HEAD[dn.h];
         add({ x0: dn.x + hx * 50 - 40, y0: dn.y + hy * 50 - 40, x1: dn.x + hx * 50 + 40, y1: dn.y + hy * 50 + 40 });
