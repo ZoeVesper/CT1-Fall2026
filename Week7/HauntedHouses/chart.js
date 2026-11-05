@@ -92,7 +92,7 @@ const CHART = [
     },
     {
         cat: 'Optional Strategy', items: [
-            { id: 'block', name: 'Visual Block', tip: 'A curtain in a doorway slot (the slots on the dashed path, between locations); only a Visual Block can go there. Raises anticipation +10, which makes every later scare stronger. Scares and cues in the first 100 units behind it ×1.2 (red outline).' },
+            { id: 'block', name: 'Visual Block', tip: 'Raises anticipation +10, which makes every later scare stronger. Scares and cues in the first 100 units behind it ×1.2 (red outline).' },
             { id: 'cue', name: 'Visual Cue', tip: 'Built from three other categories: a core + concealment (a Display, or none on the floor) + visual add-on (optional Flashing Light). Adds +4 fear (+8 if flashing), and the visitor stares at it (a green pulse on the map): scares in the next 150 frames ×1.7 (misdirection).' },
             { id: 'turn', name: 'Direction Change', tip: 'A room’s side exit, or a turning corridor (turns 90°; 2 wall slots). Raises anticipation +6. After a turning corridor, scares and cues in the first 100 units of the next location ×1.5: the blind side (amber outline on those slots). A room turns in its centre, too far away for that.' },
         ]
