@@ -3,8 +3,14 @@
   "configurations": [
     {
       "name": "week7-haunted-houses",
-      "runtimeExecutable": "powershell",
-      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\Users\\zhang\\AppData\\Local\\Temp\\claude\\0eef2a63f001956c\\54994a73-f15a-4642-8fad-c02719f8e31e\\scratchpad\\serve.ps1", "-Root", "Week7/HauntedHouses", "-Port", "8000"],
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8000", "--directory", "Week7/HauntedHouses"],
+      "port": 8000
+    },
+    {
+      "name": "week7-haunted-houses-windows",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8000", "--directory", "Week7/HauntedHouses"],
       "port": 8000
     }
   ]
