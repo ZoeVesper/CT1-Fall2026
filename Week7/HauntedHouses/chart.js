@@ -87,7 +87,7 @@ const CHART = [
     },
     {
         cat: 'Audio Add-on', items: [
-            { id: 'sudden', name: 'Sudden Sound', tip: 'Scares only. +14 strength.' },
+            { id: 'sudden', name: 'Sudden Sound', tip: 'Scares only. +14 strength. Marked by yellow sound waves on the slot; a yellow pulse spreads out when it goes off.' },
         ]
     },
     {

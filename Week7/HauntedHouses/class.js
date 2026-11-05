@@ -159,9 +159,26 @@ class Encounter {
                 noStroke();
                 ellipse(-16, -18, 5, 5);
             }
+            // Sudden sound: small yellow sound waves in the top-left corner, kept
+            // inside the slot (the same corner as a cue's green eye; a cue never
+            // has a sound, so the two never meet)
+            if (this.snd == 'sudden') {
+                stroke(255, 220, 60);
+                strokeWeight(1.5);
+                noFill();
+                arc(-20, -18, 6, 6, -QUARTER_PI, QUARTER_PI);
+                arc(-20, -18, 12, 12, -QUARTER_PI, QUARTER_PI);
+                arc(-20, -18, 18, 18, -QUARTER_PI, QUARTER_PI);
+                noStroke();
+                fill(255, 220, 60);
+                ellipse(-20, -18, 3, 3);
+            }
+            // The pulse when it goes off: green for a cue catching the eye,
+            // yellow for a sudden sound
             if (this.ring > 0) {
                 noFill();
-                stroke(90, 255, 90, this.ring * 8);
+                if (this.kind == 'cue') stroke(90, 255, 90, this.ring * 8);
+                else stroke(255, 220, 60, this.ring * 8);
                 strokeWeight(2);
                 ellipse(0, 0, (30 - this.ring) * 4, (30 - this.ring) * 4);
             }
