@@ -28,7 +28,7 @@
     <button onclick="clearEncounters()" title="Clear every scare, cue and visual block; the layout stays">Clear All Encounters</button>
     <button onclick="clearHouse()" title="Start again with an empty map">Reset All</button>
 
-    <p class="mut" style="margin:10px 0 6px 0">Click a slot or a location. What everything does: <a href="#elements" style="color:#e55">Element chart</a>.</p>
+    <p class="mut" style="margin:10px 0 6px 0">Click a slot or a location. What everything does: <a href="#elements" style="color:#e55">Element Chart</a>.</p>
 
     <div id="ed" class="mut" style="margin-bottom:12px; padding:8px; border:1px solid #3a2a2a; border-radius:4px; background: #1c1616;">Select a slot or a location…</div>
 
@@ -50,7 +50,7 @@
             </div>
         </div>
 
-        <h2 id="elements">Element chart</h2>
+        <h2 id="elements">Element Chart</h2>
         <p class="mut">The system is built around six categories: location, core, concealment, visual add-on, audio add-on, and optional strategy. Within the optional strategy category, visual cues are created by combining elements from three other categories: the core, concealment, and visual add-on. Hover over an element for details.</p>
         <div class="card" id="chart"></div>
 
@@ -65,7 +65,7 @@
             <li><b>Behaviour.</b> I gave encounters no fixed “scare value”. They only emit stimuli; the visitor’s state decides the result, which is where emergence comes from.</li>
         </ol>
 
-        <h2>UML class diagram</h2>
+        <h2>UML Class Diagram</h2>
         <div class="card scroll">
             <svg viewBox="0 0 1044 548" width="1044" style="max-width:100%;height:auto" font-family="monospace" font-size="11" fill="#e8dede">
                 <defs>
@@ -147,7 +147,7 @@
         </div>
         <p class="mut">Composition (filled diamond): a House is made of 1–8 Locations and their doorways, and each Location owns its Encounter slots. Inheritance (triangle): Room, Corridor and Corner extend the abstract Location. An Encounter’s element categories are attributes limited to fixed sets of values (enumerations, dashed arrows). Arrows: a Visitor reacts to Encounters, and its fear spreads to nearby Visitors. The note shows how the three strategies are built from these classes.</p>
 
-        <h2>Emergent properties</h2>
+        <h2>Emergent Properties</h2>
         <p>No encounter has a built-in “scariness”. The same encounter can be a great scare or a wasted prop depending on its neighbours:</p>
         <ul style="list-style: none; padding-left: 0;">
             <li><b>Misdirection.</b> A visitor watching a Visual Cue is far more vulnerable to a jump scare that follows.</li>
