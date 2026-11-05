@@ -186,16 +186,25 @@ label {
     margin-right: 8px;
 }
 
-/* Scale the canvas down (keeping its shape) to fit both the column and the window height */
+/* The map's frame always fills its column, so it lines up with the cards above
+   and below; the canvas inside scales down (keeping its shape) to fit both the
+   column and the window height, centred on the same dark background */
+#cv {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgb(8, 8, 8); /* the canvas's own background(8) */
+    border: 1px solid var(--ln);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
 #cv canvas {
     max-width: 100%;
     max-height: calc(100vh - 16px);
     width: auto !important;
     height: auto !important;
     display: block;
-    margin: 0 auto;
-    border: 1px solid var(--ln);
-    border-radius: 6px;
 }
 
 #scare-stats {
