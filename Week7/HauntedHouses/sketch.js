@@ -153,7 +153,7 @@ function stopRun() {
     finished = [];
     nextId = 1;
     document.getElementById('btnPause').textContent = "Pause";
-    document.getElementById('stats').textContent = 'No run yet.';
+    document.getElementById('stats').textContent = 'No test yet.';
 }
 
 // Randomise, four ways (encounters = scares, cues and visual blocks):
@@ -391,7 +391,7 @@ function startTest() {
     house.updateExits(); // resets exit counts
     logs = [];
     document.getElementById('log').innerHTML = '';
-    document.getElementById('stats').textContent = 'Initializing...';
+    document.getElementById('stats').textContent = 'Starting…';
 
     house.slots().forEach(slot => {
         slot.e.total = 0;
@@ -406,16 +406,16 @@ function startTest() {
     group.push(new Visitor(-20, nextId++, 0, 1.2));
     spawnTimer = 0;
     running = true;
-    note("Test Started. Visitors entering...");
-    document.getElementById('stats').textContent = "Running...";
+    note("Test started. Visitors are entering…");
+    document.getElementById('stats').textContent = "Running…";
 }
 
 function togglePause() {
     if (!running) return;
     paused = !paused;
     document.getElementById('btnPause').textContent = paused ? "Resume" : "Pause";
-    if (paused) note("Test Paused.");
-    else note("Test Resumed.");
+    if (paused) note("Test paused.");
+    else note("Test resumed.");
 }
 
 function endTest() {
