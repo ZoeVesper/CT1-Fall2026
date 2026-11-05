@@ -88,7 +88,13 @@ class Encounter {
         rect(-26, -26, 52, 52, 4);
         noStroke();
         const sw = this.open * 3;
-        for (let i = -3; i <= 3; i++) {
+        if (IMG.block) {
+            // the artist's picture, swaying side to side when pushed through
+            push();
+            translate(sin(frameCount * .3) * sw, 0);
+            drawPic(IMG.block, 48, 48);
+            pop();
+        } else for (let i = -3; i <= 3; i++) {
             fill(120 + i * 4, 25, 28, 238);
             rect(i * 7 - 3 + sin(frameCount * .3 + i) * sw, -23, 6, 46 + (i % 2 ? -6 : 0));
         }
@@ -128,11 +134,14 @@ class Encounter {
             if (this.conc == 'screen') scale(lerp(.55, 1, this.open));
             drawCore(this.core);
             pop();
-            if (this.vis == 'darkness') {
-                fill(0, 0, 0, 190 * (1 - this.open * .6));
-                rect(-25, -25, 50, 50);
-            }
             drawConc(this.conc, this.open);
+            // Darkness dims everything in the slot (the scare and its cover),
+            // a little less while it is being revealed
+            if (this.vis == 'darkness') {
+                noStroke();
+                fill(0, 0, 0, 100 * (1 - this.open * .6));
+                rect(-26, -26, 52, 52, 4);
+            }
             if (this.vis == 'flashing' && frameCount % 20 < 10) {
                 fill(255, 255, 190, 100);
                 rect(-25, -25, 50, 50);
@@ -170,7 +179,26 @@ class Encounter {
     }
 }
 
+// The artist's own pictures used on the map (files in Icon/), by the name the
+// code uses. sketch.js setup() loads them into IMG; anything without one keeps
+// its drawn icon.
+const MAP_PICTURES = {
+    actor: 'Actor', installation: 'Instal', stationary: 'Stationary',
+    door: 'Door', shutter: 'Shutter', screen: 'Screen', display: 'Display',
+    block: 'VisualBlock',
+};
+const IMG = {};
+const DISPLAY_ALPHA = 150; // how solid the Display picture is on the map (0 = invisible, 255 = solid)
+
+// Draw a picture centred, fitted inside w x h without stretching it
+function drawPic(img, w, h) {
+    const s = min(w / img.width, h / img.height);
+    imageMode(CENTER);
+    image(img, 0, 0, img.width * s, img.height * s);
+}
+
 function drawCore(c) {
+    if (IMG[c]) return drawPic(IMG[c], 46, 46);
     noStroke();
     if (c == 'actor') {
         fill(12);
@@ -208,6 +236,16 @@ function drawConc(k, o) {
     let a = 255 * (1 - o);
     push();
     strokeWeight(1);
+    if (IMG[k]) {
+        // The artist's picture, behaving like the drawn version: a door fades
+        // away, a shutter rolls up, a screen turns see-through, a display stays
+        // see-through all the time so the core inside shows (DISPLAY_ALPHA)
+        if (k == 'shutter') translate(0, -o * 46);
+        tint(255, k == 'screen' ? lerp(220, 60, o) : k == 'display' ? DISPLAY_ALPHA : a);
+        drawPic(IMG[k], 48, 50);
+        pop();
+        return;
+    }
     if (k == 'door') {
         fill(70, 66, 66, a);
         stroke(140, a);

@@ -1,6 +1,6 @@
 // Element chart: one row per category, an icon + name per element, and the
-// details in a tooltip on hover (or keyboard focus). Icons are small SVGs drawn
-// to match how each element looks on the map.
+// details in a tooltip on hover (or keyboard focus). Icons are the pictures in
+// Icon/ (see PICTURES), or small SVGs drawn to match the map where there is none.
 
 const FRAME = (inner, bg = '#1a1515') =>
     `<svg viewBox="0 0 56 56" width="56" height="56" aria-hidden="true">` +
@@ -40,6 +40,17 @@ const ICONS = {
     turn: FRAME(`<rect x="3" y="3" width="50" height="50" rx="5" fill="#ffaa00" fill-opacity=".1" stroke="#ffaa00" stroke-width="1.5"/>` +
         `<g fill="none" stroke="#ffaa00" stroke-width="3" stroke-linecap="round"><path d="M12 40H30V14"/><path d="M24 21L30 14L36 21"/></g>`),
 };
+
+// The artist's own pictures (Icon/ folder) replace the drawn icons above
+// wherever there is one
+const PICTURES = {
+    room: 'Room', corridor: 'Corridor', actor: 'Actor', installation: 'Instal', stationary: 'Stationary',
+    door: 'Door', shutter: 'Shutter', screen: 'Screen', display: 'Display',
+    darkness: 'Darkness', flashing: 'Flash', sudden: 'AudioAddon',
+    block: 'VisualBlock', cue: 'VisualCue', turn: 'DirectionChange',
+};
+Object.entries(PICTURES).forEach(([id, file]) =>
+    ICONS[id] = FRAME(`<image href="Icon/${file}.png" x="3" y="3" width="50" height="50"/>`));
 
 const SHARED = {
     core: 'Repeating the same core weakens it for that visitor: ÷ (1 + 0.5 × times seen).',
@@ -83,7 +94,7 @@ const CHART = [
         cat: 'Optional strategy', items: [
             { id: 'block', name: 'Visual block', tip: 'A curtain on a doorway (click a doorway on the dashed path); uses no scare slot. Raises anticipation +10, which multiplies every later scare × (1 + anticipation / 100). Scares and cues in the first 100 units behind it ×1.2 (red outline).' },
             { id: 'cue', name: 'Visual cue', tip: 'Built from three other categories: a core + concealment (a Display, or none on the floor) + visual add-on (optional Flashing). Adds +4 fear (+8 if flashing), and the visitor stares at it (a green pulse on the map): scares in the next 150 frames ×1.7 (misdirection).' },
-            { id: 'turn', name: 'Direction change', tip: 'A room’s side exit, or a Corner (turns 90°; 2 wall slots). Raises anticipation +6. After a Corner, scares and cues in the first 100 units of the next location ×1.5: the blind side (amber zone and outline). A room turns in its centre, too far away for that.' },
+            { id: 'turn', name: 'Direction change', tip: 'A room’s side exit, or a Corner (turns 90°; 2 wall slots). Raises anticipation +6. After a Corner, scares and cues in the first 100 units of the next location ×1.5: the blind side (amber outline on those slots). A room turns in its centre, too far away for that.' },
         ]
     },
 ];

@@ -365,9 +365,18 @@ function setF(k, v) {
     edit();
 }
 
-function setup() {
+async function setup() {
     createCanvas(W, H).parent('cv');
     textFont('monospace');
+    // The artist's own pictures for the map (see MAP_PICTURES in class.js).
+    // One that can't be loaded is skipped: that element keeps its drawn icon.
+    for (const [name, file] of Object.entries(MAP_PICTURES)) {
+        try {
+            IMG[name] = await loadImage('Icon/' + file + '.png');
+        } catch (err) {
+            console.warn('Could not load Icon/' + file + '.png', err);
+        }
+    }
 }
 
 // House units -> canvas px: a fixed scale, with the house centred on the canvas
@@ -437,21 +446,8 @@ function draw() {
         stroke(80);
         strokeWeight(2);
         rect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
-        // Turned into: its first BLIND_D units are the blind side (faint amber,
-        // dashed line where it ends)
-        if (i > 0 && house.segs[i - 1].kind == 'corner' && g.kind != 'corner') {
-            const x1 = min(b[2], BLIND_D);
-            noStroke();
-            fill(255, 170, 0, 20);
-            rect(b[0] + 1, b[1] + 1, x1 - b[0] - 1, b[3] - b[1] - 2);
-            if (x1 < b[2]) {
-                stroke(255, 170, 0, 110);
-                strokeWeight(1.5);
-                drawingContext.setLineDash([5, 5]);
-                line(x1, b[1] + 1, x1, b[3] - 1);
-                drawingContext.setLineDash([]);
-            }
-        }
+        // (The blind side after a corner isn't shaded: its slots carry the
+        // amber outline and ×1.5 instead.)
         // Doorways: gaps in the wall at the entrance and the exit
         const ex = g.routeLocal()[g.routeLocal().length - 1];
         doorGap(0, -30, 0, 30);
@@ -519,7 +515,25 @@ function draw() {
         q.e.tick();
         if (q.e.kind != 'empty') n++;
         q.n = q.e.kind != 'empty' ? n : 0;
-        if (q.door !== null) return; // doorways are drawn after the visitors
+        if (q.door !== null) {
+            // An empty doorway is a slot for a visual block: a faint dashed
+            // curtain-red square with a "+" (drawn under the visitors; a block
+            // itself is drawn after them)
+            if (q.e.kind != 'block') {
+                noFill();
+                stroke(150, 60, 60, 150);
+                strokeWeight(1.5);
+                drawingContext.setLineDash([4, 3]);
+                rect(q.x - 22, q.y - 22, 44, 44, 4);
+                drawingContext.setLineDash([]);
+                noStroke();
+                fill(150, 60, 60, 170);
+                textAlign(CENTER, CENTER);
+                textSize(18);
+                text('+', q.x, q.y);
+            }
+            return;
+        }
         if (q.blockedBy.length && q.e.kind == 'empty') {
             // ruled out by a neighbouring slot: faint cross
             noFill();
@@ -530,29 +544,32 @@ function draw() {
             line(q.x + 10, q.y - 10, q.x - 10, q.y + 10);
             if (q.e === sel) { stroke(255, 200, 0); rect(q.x - 24, q.y - 24, 48, 48, 6); }
         } else {
+            // Bonus outlines hug the icon (at most 5 units out), so they never
+            // reach a neighbouring slot's icon, even one only a few units away.
             // Blind side: a scare just after a turn, amber outline + multiplier
             if (q.blind) {
                 noFill();
                 stroke(255, 170, 0);
                 strokeWeight(2);
-                rect(q.x - 35, q.y - 35, 70, 70, 8);
+                rect(q.x - 30, q.y - 30, 60, 60, 6);
                 noStroke();
                 fill(255, 170, 0);
                 textSize(10);
                 textAlign(RIGHT, BOTTOM);
-                text('×' + BLIND, q.x + 35, q.y - 37);
+                text('×' + BLIND, q.x + 30, q.y - 32);
             }
-            // Behind a visual block: curtain-red outline, multiplier top left
+            // Behind a visual block: curtain-red outline (inside the amber one),
+            // multiplier top left
             if (q.behindBlock) {
                 noFill();
                 stroke(200, 60, 60);
                 strokeWeight(2);
-                rect(q.x - 33, q.y - 33, 66, 66, 7);
+                rect(q.x - 28, q.y - 28, 56, 56, 5);
                 noStroke();
                 fill(220, 80, 80);
                 textSize(10);
                 textAlign(LEFT, BOTTOM);
-                text('×' + BLOCK, q.x - 35, q.y - 37);
+                text('×' + BLOCK, q.x - 30, q.y - 32);
             }
             q.e.draw(q.x, q.y, q.n, q.e === sel);
         }
@@ -720,4 +737,21 @@ function clearHouse() {
     edit();
     logs = [];
     document.getElementById('log').innerHTML = '';
+}
+
+// Empty every slot that holds a scare or cue; the layout, visual blocks and
+// emergency exits stay as they are
+function clearEncounters() {
+    stopRun();
+    let n = 0;
+    house.segs.forEach(s => Object.values(s.enc).forEach(e => {
+        if (e.kind != 'scare' && e.kind != 'cue') return;
+        e.kind = 'empty';
+        e.sanitize();
+        e.total = e.hits = 0;
+        n++;
+    }));
+    sel = null;
+    edit();
+    note(n ? `Cleared ${n} scare${n == 1 ? '' : 's'} and cue${n == 1 ? '' : 's'}.` : 'No scares or cues to clear.');
 }
