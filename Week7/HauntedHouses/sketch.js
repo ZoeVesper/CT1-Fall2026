@@ -854,6 +854,17 @@ function summary() {
         ' | panicked: ' + all.filter(v => v.fled).length + '/' + all.length;
 }
 
+// Space pauses or resumes a running test (p5 calls this on every key press).
+// Returning false stops the page from scrolling, and a focused button (Start
+// Test, say) from being pressed by the Space key as well.
+function keyPressed() {
+    if (key !== ' ' || !running) return;
+    const f = document.activeElement;
+    if (f && (f.tagName == 'SELECT' || f.tagName == 'INPUT')) return; // Space belongs to that control
+    togglePause();
+    return false;
+}
+
 function mousePressed() {
     if (mouseX < 0 || mouseY < 0 || mouseX > W || mouseY > LAYOUT_H) return;
     const V = view(),
