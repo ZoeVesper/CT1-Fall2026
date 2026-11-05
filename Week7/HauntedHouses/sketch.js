@@ -476,7 +476,7 @@ function edit() {
     if (q.door !== undefined && q.door !== null) {
         // A doorway slot (on the dashed path) holds only a visual block
         const types = e.kindOptions().map(x =>
-            `<option value="${x}" ${x == e.kind ? 'selected' : ''}>${x == 'block' ? 'Visual block' : cap(x)}</option>`).join('');
+            `<option value="${x}" ${x == e.kind ? 'selected' : ''}>${x == 'block' ? 'Visual Block' : cap(x)}</option>`).join('');
         return show(`<b>Doorway Slot</b><label>Type <select onchange="setF('kind',this.value)">${types}</select></label>`,
             e.kind == 'block' ? '<button onclick="removeSelected()">Clear Encounter</button>' : '');
     }
