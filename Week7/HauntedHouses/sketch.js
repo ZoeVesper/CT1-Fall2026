@@ -634,13 +634,6 @@ function draw() {
             if (mx == b[0] || mx == b[2]) line(mx, my - 14, mx, my + 14);
             else line(mx - 14, my, mx + 14, my);
         }
-        // Selected location: yellow outline
-        if (g === selLoc) {
-            noFill();
-            stroke(255, 200, 0);
-            strokeWeight(3);
-            rect(b[0] - 3, b[1] - 3, b[2] - b[0] + 6, b[3] - b[1] + 6, 4);
-        }
         pop();
     });
 
@@ -654,6 +647,21 @@ function draw() {
         line(...q.opening);
         drawingContext.setLineDash([]);
     });
+
+    // Selected location: yellow outline, drawn after every floor so a location
+    // built later (and drawn later) can't cover it
+    const si = house.segs.indexOf(selLoc);
+    if (si >= 0) {
+        const p = L.locs[si], b = selLoc.body;
+        push();
+        translate(p.x, p.y);
+        rotate(p.h * HALF_PI);
+        noFill();
+        stroke(255, 200, 0);
+        strokeWeight(3);
+        rect(b[0] - 3, b[1] - 3, b[2] - b[0] + 6, b[3] - b[1] + 6, 4);
+        pop();
+    }
 
     if (!house.segs.length) {
         fill(120);
@@ -861,6 +869,7 @@ function keyPressed() {
     if (key !== ' ' || !running) return;
     const f = document.activeElement;
     if (f && (f.tagName == 'SELECT' || f.tagName == 'INPUT')) return; // Space belongs to that control
+    if (f && f.tagName == 'BUTTON') f.blur(); // or the browser outlines the last clicked button
     togglePause();
     return false;
 }
