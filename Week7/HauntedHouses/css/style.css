@@ -23,9 +23,75 @@ body {
 }
 
 main {
-    max-width: 1000px;
+    max-width: 1440px;
     margin: 0 auto;
     padding: 24px 16px 60px;
+}
+
+/* Text and cards keep a readable width; only the simulator stage uses the full width */
+main > :not(.stage) {
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Simulator stage: canvas on the left, statistics panel on the right */
+.stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 12px;
+    margin: 12px 0;
+}
+
+/* The panel takes the canvas's height (contain: size keeps its own content from
+   growing the row) and scrolls inside */
+.stage .side {
+    margin: 0;
+    contain: size;
+    /* status, exit counts and log on top; the encounter table fills the rest
+       and scrolls on its own */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.stage .side > * {
+    flex: none;
+}
+
+.stage .side #log {
+    min-height: 0;
+    max-height: 9.5em;
+    overflow-y: auto;
+}
+
+.stage .side #scare-stats {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Header stays put and fully covers the rows scrolling under it (the line is a
+   shadow because collapsed table borders don't move with a sticky cell) */
+#scare-stats thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--card);
+    border-bottom: none;
+    padding-top: 6px;
+    box-shadow: inset 0 -1px 0 var(--ln);
+}
+
+@media (max-width: 1000px) {
+    .stage {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .stage .side {
+        contain: none;
+        max-height: 60vh;
+    }
 }
 
 h1 {
@@ -88,12 +154,139 @@ label {
     margin-right: 8px;
 }
 
+/* Scale the canvas down (keeping its shape) to fit both the column and the window height */
 #cv canvas {
     max-width: 100%;
+    max-height: calc(100vh - 16px);
+    width: auto !important;
     height: auto !important;
     display: block;
+    margin: 0 auto;
     border: 1px solid var(--ln);
     border-radius: 6px;
+}
+
+#scare-stats {
+    overflow-x: hidden;
+}
+
+#scare-stats table {
+    width: 100%;
+    border-collapse: collapse;
+    font: 12px/1.4 monospace;
+    color: var(--fg);
+}
+
+#scare-stats th {
+    text-align: left;
+    color: var(--mut);
+    font-weight: normal;
+    border-bottom: 1px solid var(--ln);
+    padding: 4px 8px 4px 0;
+    white-space: nowrap;
+}
+
+#scare-stats td {
+    padding: 3px 8px 3px 0;
+    border-bottom: 1px solid #241a1a;
+    vertical-align: middle;
+}
+
+#scare-stats .num {
+    text-align: right;
+    white-space: nowrap;
+}
+
+#scare-stats .where {
+    color: var(--mut);
+}
+
+#scare-stats .bar {
+    display: block;
+    margin: 3px 0 0 auto;
+    height: 6px;
+    background: var(--ac);
+    border-radius: 1px;
+}
+
+/* Element chart: a row per category, icon + name per element, details on hover */
+.chart-row {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #241a1a;
+}
+
+.chart-row:last-child {
+    border-bottom: none;
+}
+
+.chart-cat {
+    color: #e55;
+    font-weight: bold;
+}
+
+.chart-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.chart-item {
+    width: 92px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 4px;
+    border-radius: 6px;
+    font-size: .8rem;
+    text-align: center;
+    color: var(--fg);
+    cursor: help;
+    outline: none;
+}
+
+.chart-item:hover,
+.chart-item:focus {
+    background: #241a1a;
+}
+
+.chart-item svg {
+    display: block;
+}
+
+.chart-item .flash {
+    animation: flash .66s steps(1) infinite;
+}
+
+@keyframes flash {
+    0% { opacity: .4; }
+    50% { opacity: 0; }
+}
+
+.chart-tip {
+    display: none;
+    position: fixed;
+    z-index: 10;
+    max-width: 300px;
+    padding: 8px 10px;
+    background: #241a1a;
+    border: 1px solid #5a3a3a;
+    border-radius: 6px;
+    font-size: .82rem;
+    line-height: 1.45;
+    color: var(--fg);
+    pointer-events: none;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .5);
+}
+
+@media (max-width: 600px) {
+    .chart-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 #log {

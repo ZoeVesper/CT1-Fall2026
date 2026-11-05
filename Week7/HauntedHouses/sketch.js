@@ -1,3 +1,12 @@
+// Fixed map scale: the canvas shows VIEW_W x VIEW_H house units, whatever the
+// house looks like, and that is also the limit on how big a house can be.
+// Width: 6 rooms in 2 rows of 3 (874 units with their hidden areas, the queue
+// and the way out). Height: room (side exit) + corridor + corner + corridor +
+// room stacked up (664 units), plus the 8 px edge margin.
+const VIEW_W = 900,
+    VIEW_H = 680,
+    EDGE = 8; // everything stays at least this many px inside the canvas edge
+
 let house = new House(),
     sel = null,     // selected slot (Encounter)
     selLoc = null,  // selected Room/Corridor/Corner
@@ -7,8 +16,8 @@ let house = new House(),
     spawnTimer = 0,
     logs = [],
     W = 960,
-    H = 520,
-    LAYOUT_H = 420, // the house is drawn above this line, the fear chart below
+    H = Math.round(960 * VIEW_H / VIEW_W), // 725
+    LAYOUT_H = H, // the house fills the canvas (fear per encounter is in the table below it)
     MAX_VISITORS = 10;
 
 const NAMES = { room: 'Room', corridor: 'Corridor', corner: 'Corner' };
@@ -27,18 +36,21 @@ function lostSlots(segs) {
         !after.some(a => a.e === q.e && a.space));
 }
 
-// Try to change the house to segs: refuse if two locations would overlap,
-// or if a used wall slot would lose its hidden area.
+// Why the house can't change to segs (null if it can): two locations would
+// overlap, a location would stand across the way in or out, it would leave the
+// canvas, or a used wall slot would lose its hidden area.
+function layoutProblem(segs) {
+    if (house.collides(segs)) return "No room for that: it would run into another part of the house.";
+    if (house.blocksWay(segs)) return "No room for that: the way into or out of the house would run into another part of it.";
+    if (!fitsCanvas(segs)) return "No room for that: it would go off the edge of the map.";
+    if (lostSlots(segs).length) return "That would cover the hidden area behind a wall slot that is in use. Clear that slot first.";
+    return null;
+}
+
 function tryLayout(segs) {
-    if (house.collides(segs)) {
-        note("No room for that: it would run into another part of the house.");
-        return false;
-    }
-    if (lostSlots(segs).length) {
-        note("That would cover the hidden area behind a wall slot that is in use. Clear that slot first.");
-        return false;
-    }
-    return true;
+    const p = layoutProblem(segs);
+    if (p) note(p);
+    return !p;
 }
 
 function addLoc(l) {
@@ -46,15 +58,75 @@ function addLoc(l) {
         note("A house has at most " + MAX_LOCS + " locations.");
         return false;
     }
+    // A room whose exit wall doesn't work here (e.g. it would lead straight into
+    // another part of the house) takes the first other wall that does.
+    if (l.kind == 'room' && layoutProblem([...house.segs, l])) {
+        const want = l.exit;
+        const ok = ['straight', 'left', 'right'].find(x => {
+            l.exit = x;
+            return !layoutProblem([...house.segs, l]);
+        });
+        l.exit = ok || want;
+        if (ok) note("Exit set to " + { straight: 'straight on', left: 'turn left', right: 'turn right' }[ok] + " so the way through is clear.");
+    }
     if (!tryLayout([...house.segs, l])) return false;
     if (!house.doors.length) house.doors.push(newDoor()); // house entrance
+    const flags = house.segs.map(s => s.emergency);
     house.segs.push(l);
     house.doors.push(newDoor());                           // this location's exit
+    const fix = fixExitRule();
+    if (!fix.ok) {
+        // nowhere to fit the emergency exits the rule needs: take it back
+        house.segs.pop();
+        house.doors.pop();
+        if (!house.segs.length) house.doors = [];
+        house.segs.forEach((s, k) => s.emergency = flags[k]);
+        note("No room for that: there would be 3 locations in a row with no clear wall for an emergency exit.");
+        return false;
+    }
+    noteAdded(fix.added);
     house.updateExits();
     selLoc = l; // show its settings straight away
     sel = null;
     edit();
     return true;
+}
+
+// Every 3 locations in a row (or the whole house, if shorter) need an emergency
+// exit; a run that reaches the last location already has the house exit. Where
+// a run has none that fits, add one: the last location of the run that has a
+// clear spot (so it also covers the next run).
+// Returns whether the rule now holds, and which locations got an exit.
+function fixExitRule() {
+    const n = house.segs.length, w = min(3, n), added = [];
+    for (let i = 0; i + w <= n; i++) {
+        if (i + w == n || house.exits().slice(i, i + w).some(Boolean)) continue;
+        for (let j = i + w - 1; j >= i; j--) {
+            const s = house.segs[j];
+            if (s.emergency) continue;
+            s.emergency = true;
+            if (house.exits()[j]) { added.push(j); break; }
+            s.emergency = false;
+        }
+    }
+    return { ok: !house.exitGaps().length, added };
+}
+
+function noteAdded(added) {
+    if (added.length) note("Emergency exit added to " + added.map(locName).join(', ') + " (every 3 locations need one).");
+}
+
+// Tick box in a location's settings
+function setEmergency(v) {
+    const g = selLoc, i = house.segs.indexOf(g);
+    g.emergency = v;
+    if (!v && house.exitGaps().length) {
+        g.emergency = true;
+        note("Every 3 locations in a row need an emergency exit, so this one has to stay.");
+    } else if (v && !house.exits()[i]) {
+        note("No clear spot on " + locName(i) + "'s walls for an emergency exit.");
+    }
+    edit();
 }
 
 function newDoor() {
@@ -69,6 +141,7 @@ function undo() {
         house.doors.pop();
         if (!house.segs.length) house.doors = [];
         house.updateExits();
+        noteAdded(fixExitRule().added); // a shorter house may need one somewhere else
     }
     sel = null;
     edit();
@@ -95,18 +168,28 @@ function randomHouse() {
     stopRun();
     house = new House();
     sel = selLoc = null;
-    let tries = 0;
-    while (house.segs.length < 5 && tries++ < 60) {
-        const k = random(['room', 'room', 'corridor', 'corridor', 'cornerL', 'cornerR']);
-        const l = k == 'room' ? new Room(random(['straight', 'straight', 'left', 'right']))
-            : k == 'corridor' ? new Corridor()
-                : new Corner(k == 'cornerL' ? 'left' : 'right');
-        if (!house.collides([...house.segs, l])) {
-            if (!house.doors.length) house.doors.push(newDoor());
-            house.segs.push(l);
-            house.doors.push(newDoor());
+    // A layout can get boxed in by the canvas edges early, or leave no clear wall
+    // for the emergency exits it needs, so try a few: keep the first with 5
+    // locations that meets the exit rule (or the biggest one that does).
+    let best = [];
+    for (let attempt = 0; attempt < 40 && best.length < 5; attempt++) {
+        const segs = [];
+        let tries = 0;
+        while (segs.length < 5 && tries++ < 60) {
+            const k = random(['room', 'room', 'corridor', 'corridor', 'cornerL', 'cornerR']);
+            const l = k == 'room' ? new Room(random(['straight', 'straight', 'left', 'right']))
+                : k == 'corridor' ? new Corridor()
+                    : new Corner(k == 'cornerL' ? 'left' : 'right');
+            const next = [...segs, l];
+            if (!house.collides(next) && !house.blocksWay(next) && fitsCanvas(next)) segs.push(l);
         }
+        if (segs.length <= best.length) continue;
+        house.segs = segs;
+        segs.forEach(s => s.emergency = random() < .3);
+        if (fixExitRule().ok) best = segs;
     }
+    house.segs = best;
+    house.doors = best.length ? [newDoor(), ...best.map(() => newDoor())] : [];
     house.updateExits();
     // Fill slots in random order, skipping any that a neighbour already rules out
     shuffle(house.slotInfo()).forEach(q => {
@@ -127,6 +210,12 @@ function randomHouse() {
 function startTest() {
     if (!house || house.segs.length === 0) {
         note("Build something first.");
+        return;
+    }
+    if (house.exitGaps().length) {
+        const i = house.exitGaps()[0], names = house.segs.slice(i, i + 3).map((_, k) => locName(i + k));
+        note("Can't start: " + (names.length == 1 ? names[0] + " needs an emergency exit."
+            : names.join(', ') + " need an emergency exit between them."));
         return;
     }
     stopRun();
@@ -168,8 +257,12 @@ function endTest() {
     summary();
 }
 
+// "flashing" -> "Flashing"
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1) }
+
 function opts(a, v) {
-    return a.map(x => `<option ${x == v ? 'selected' : ''}>${x}</option>`).join('');
+    // value stays as the code uses it; the text shown is capitalised
+    return a.map(x => `<option value="${x}" ${x == v ? 'selected' : ''}>${cap(x)}</option>`).join('');
 }
 
 // Info about the selected slot (doorway or location slot)
@@ -185,46 +278,47 @@ function edit() {
     if (selLoc && !house.segs.includes(selLoc)) selLoc = null;
     if (selLoc) {
         const i = house.segs.indexOf(selLoc), g = selLoc;
-        const turnedInto = i > 0 && house.segs[i - 1].exitTurn != 0;
-        const blind = turnedInto ? ` Visitors turned to get here, so they could not see it coming: its scares are on the blind side (×${BLIND}).` : '';
         if (g.kind == 'room') {
-            el.innerHTML = `<b>${locName(i)}</b> &nbsp; <label style="color:inherit">exit
-                <select onchange="setExit(this.value)">${['straight', 'left', 'right'].map(v => `<option value="${v}" ${g.exit == v ? 'selected' : ''}>${{ straight: 'straight on (front wall)', left: 'turn left (left wall)', right: 'turn right (right wall)' }[v]}</option>`).join('')}</select></label><br>
-                4 floor slots and 2 slots behind each wall. Using a floor slot rules out the two wall slots next to it, and the other way round.
-                Visitors walk to the centre and out through the exit; a side exit is a direction change, so the next location is on the blind side.${blind}`;
+            el.innerHTML = `<b>${locName(i)}</b> &nbsp; <label style="color:inherit">Exit
+                <select onchange="setExit(this.value)">${opts(['straight', 'left', 'right'], g.exit)}</select></label>`;
         } else if (g.kind == 'corner') {
-            el.innerHTML = `<b>${locName(i)}</b> &nbsp; <label style="color:inherit">turns
-                <select onchange="setSide(this.value)">${opts(['left', 'right'], g.side)}</select></label><br>
-                A corridor turn. One slot behind the front wall and one behind the outer side wall. The location after it is on the blind side.${blind}`;
+            el.innerHTML = `<b>${locName(i)}</b> &nbsp; <label style="color:inherit">Turns
+                <select onchange="setSide(this.value)">${opts(['left', 'right'], g.side)}</select></label>`;
         } else {
-            el.innerHTML = `<b>${locName(i)}</b> – one direction only, entrance and exit at the two ends. One slot behind each side wall; nothing on the floor. Add a corner to change direction.${blind}`;
+            el.innerHTML = `<b>${locName(i)}</b>`;
         }
+        // Emergency exit option (placed automatically where its wall is clear)
+        const noSpot = g.emergency && !house.exits()[i];
+        el.innerHTML += ` &nbsp; <label style="color:inherit"><input type="checkbox" onchange="setEmergency(this.checked)"
+            ${g.emergency ? 'checked' : ''}> Emergency Exit</label>${noSpot ? ' <span style="color:#dc5050">No clear wall for it</span>' : ''}`;
         return;
     }
     const q = selInfo();
     if (!q) {
         sel = null;
-        el.textContent = 'Select a slot, or click inside a room/corridor/corner to see its settings…';
+        el.textContent = 'Select a slot, room or doorway…';
         return;
     }
     const e = q.e;
     if (q.door !== undefined && q.door !== null) {
         el.innerHTML = e.kind == 'block'
-            ? '<b>Visual block</b> – a curtain across the doorway; uses no scare slot. <button onclick="rmBlock()">Remove block</button>'
-            : '<b>Doorway</b> – click it on the canvas, or <button onclick="setF(\'kind\',\'block\')">add a visual block</button>';
+            ? '<b>Visual Block</b> &nbsp; <button onclick="rmBlock()">Remove</button>'
+            : '<b>Doorway</b> &nbsp; <button onclick="setF(\'kind\',\'block\')">Add Visual Block</button>';
         return;
     }
     if (q.blockedBy && q.blockedBy.length) {
-        el.innerHTML = `<b>Blocked</b> – the ${q.blockedBy[0].place} slot next to it is in use. Clear that one to use this slot.`;
+        el.innerHTML = `<b>Blocked</b> by the ${q.blockedBy[0].place} slot next to it`;
         return;
     }
-    const where = q.place == 'wall' ? '<b>Wall slot</b> (hidden behind the wall, shown through an opening)' : '<b>Floor slot</b>';
-    let h = `${where} &nbsp; <label>type <select onchange="setF('kind',this.value)">${opts(e.kindOptions(), e.kind)}</select></label>`;
+    const where = q.place == 'wall' ? '<b>Wall Slot</b>' : '<b>Floor Slot</b>';
+    const slot = house.slots().find(o => o.e === e);
+    let h = `${where}${slot && slot.blind ? ` <span style="color:#ffaa00">×${BLIND}</span>` : ''}` +
+        `${slot && slot.behindBlock ? ` <span style="color:#dc5050">×${BLOCK}</span>` : ''} &nbsp; <label>Type <select onchange="setF('kind',this.value)">${opts(e.kindOptions(), e.kind)}</select></label>`;
     if (e.kind == 'scare' || e.kind == 'cue') {
-        h += `<label>core <select onchange="setF('core',this.value)">${opts(CORES, e.core)}</select></label>
-         <label>concealment <select onchange="setF('conc',this.value)">${opts(e.concOptions(), e.conc)}</select></label>
-         <label>visual <select onchange="setF('vis',this.value)">${opts(e.kind == 'cue' ? ['none', 'flashing'] : VIS, e.vis)}</select></label>`;
-        if (e.kind == 'scare') h += `<label>sound <select onchange="setF('snd',this.value)">${opts(SND, e.snd)}</select></label>`;
+        h += `<label>Core <select onchange="setF('core',this.value)">${opts(CORES, e.core)}</select></label>
+         <label>Concealment <select onchange="setF('conc',this.value)">${opts(e.concOptions(), e.conc)}</select></label>
+         <label>Visual <select onchange="setF('vis',this.value)">${opts(e.kind == 'cue' ? ['none', 'flashing'] : VIS, e.vis)}</select></label>`;
+        if (e.kind == 'scare') h += `<label>Sound <select onchange="setF('snd',this.value)">${opts(SND, e.snd)}</select></label>`;
     }
     el.innerHTML = h;
 }
@@ -239,9 +333,23 @@ function changeLoc(key, v) {
     if (house.collides()) {
         note("No room for that: the rest of the house would run into another part.");
         g[key] = old;
+    } else if (house.blocksWay()) {
+        note("No room for that: the way into or out of the house would run into another part of it.");
+        g[key] = old;
+    } else if (!fitsCanvas(house.segs)) {
+        note("No room for that: the rest of the house would go off the edge of the map.");
+        g[key] = old;
     } else if (before.some(q => !after.some(a => a.e === q.e && a.space))) {
         note("That would cover the hidden area behind a wall slot that is in use. Clear that slot first.");
         g[key] = old;
+    } else {
+        const flags = house.segs.map(s => s.emergency), fix = fixExitRule();
+        if (fix.ok) noteAdded(fix.added);
+        else {
+            note("No room for that: it would leave 3 locations in a row without a clear wall for an emergency exit.");
+            g[key] = old;
+            house.segs.forEach((s, k) => s.emergency = flags[k]);
+        }
     }
     house.updateExits();
     edit();
@@ -260,13 +368,16 @@ function setup() {
     textFont('monospace');
 }
 
-// Fit the whole house into the top LAYOUT_H pixels of the canvas
+// House units -> canvas px: a fixed scale, with the house centred on the canvas
 function view() {
-    if (!house.segs.length) return { s: 1, tx: 20, ty: 0 };
-    const b = house.bounds();
-    const bw = b.x1 - b.x0, bh = b.y1 - b.y0;
-    const s = min(1, (W - 40) / bw, (LAYOUT_H - 20) / bh);
-    return { s, tx: (W - bw * s) / 2 - b.x0 * s, ty: (LAYOUT_H - bh * s) / 2 - b.y0 * s };
+    const s = W / VIEW_W, b = house.bounds();
+    return { s, tx: W / 2 - (b.x0 + b.x1) / 2 * s, ty: LAYOUT_H / 2 - (b.y0 + b.y1) / 2 * s };
+}
+
+// Would the house (as segs) fit inside the canvas?
+function fitsCanvas(segs) {
+    const b = house.bounds(segs), s = W / VIEW_W;
+    return (b.x1 - b.x0) * s <= W - 2 * EDGE && (b.y1 - b.y0) * s <= LAYOUT_H - 2 * EDGE;
 }
 
 // Arrow at a turn: comes in along hin, leaves along hout
@@ -314,6 +425,7 @@ function draw() {
     });
 
     // Floors and walls, each in its own (rotated) frame
+    const EX = house.exits(); // where each location's emergency door is (if it has one)
     house.segs.forEach((g, i) => {
         const p = L.locs[i], b = g.body;
         push();
@@ -323,11 +435,20 @@ function draw() {
         stroke(80);
         strokeWeight(2);
         rect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
-        // Turned into: the whole location is the blind side
-        if (i > 0 && house.segs[i - 1].exitTurn != 0) {
+        // Turned into: its first BLIND_D units are the blind side (faint amber,
+        // dashed line where it ends)
+        if (i > 0 && house.segs[i - 1].kind == 'corner' && g.kind != 'corner') {
+            const x1 = min(b[2], BLIND_D);
             noStroke();
-            fill(255, 170, 0, 22);
-            rect(b[0] + 1, b[1] + 1, b[2] - b[0] - 2, b[3] - b[1] - 2);
+            fill(255, 170, 0, 20);
+            rect(b[0] + 1, b[1] + 1, x1 - b[0] - 1, b[3] - b[1] - 2);
+            if (x1 < b[2]) {
+                stroke(255, 170, 0, 110);
+                strokeWeight(1.5);
+                drawingContext.setLineDash([5, 5]);
+                line(x1, b[1] + 1, x1, b[3] - 1);
+                drawingContext.setLineDash([]);
+            }
         }
         // Doorways: gaps in the wall at the entrance and the exit
         const ex = g.routeLocal()[g.routeLocal().length - 1];
@@ -335,11 +456,13 @@ function draw() {
         if (ex[1] == 0) doorGap(ex[0], -30, ex[0], 30);
         else doorGap(ex[0] - 30, ex[1], ex[0] + 30, ex[1]);
         // Emergency exit door (into the staff area)
-        if (g.emergencyLocal) {
-            const [mx, my] = g.emergencyLocal();
+        if (EX[i]) {
+            const [mx, my] = EX[i].door;
             stroke(0, 200, 0);
             strokeWeight(5);
-            line(mx - 14, my, mx + 14, my);
+            // along the wall it sits in: an end wall (corner front) or a side wall
+            if (mx == b[0] || mx == b[2]) line(mx, my - 14, mx, my + 14);
+            else line(mx - 14, my, mx + 14, my);
         }
         // Selected location: yellow outline
         if (g === selLoc) {
@@ -362,25 +485,12 @@ function draw() {
         drawingContext.setLineDash([]);
     });
 
-    // EXIT labels (upright)
-    house.segs.forEach((g, i) => {
-        const f = house.fleeTarget(i, L);
-        if (!f) return;
-        noStroke();
-        fill(0, 200, 0);
-        textSize(8);
-        textAlign(CENTER, CENTER);
-        const c = toW(L.locs[i], ...g.flee().via);
-        const dx = f.door[0] - c[0], dy = f.door[1] - c[1], dl = Math.hypot(dx, dy) || 1;
-        text('EXIT', f.door[0] + dx / dl * 12, f.door[1] + dy / dl * 12);
-    });
-
     if (!house.segs.length) {
         fill(120);
         noStroke();
-        textAlign(LEFT);
+        textAlign(CENTER, CENTER);
         textSize(16);
-        text('Add a Room, Corridor or Corner to begin…', 0, 160);
+        text('Add a Room, Corridor or Corner to begin…', 20, 0); // centre of the empty map
     } else {
         // The visitors' route (dashed)
         const R = house.route(L);
@@ -417,7 +527,33 @@ function draw() {
             line(q.x - 10, q.y - 10, q.x + 10, q.y + 10);
             line(q.x + 10, q.y - 10, q.x - 10, q.y + 10);
             if (q.e === sel) { stroke(255, 200, 0); rect(q.x - 24, q.y - 24, 48, 48, 6); }
-        } else q.e.draw(q.x, q.y, q.n, q.e === sel);
+        } else {
+            // Blind side: a scare just after a turn, amber outline + multiplier
+            if (q.blind) {
+                noFill();
+                stroke(255, 170, 0);
+                strokeWeight(2);
+                rect(q.x - 35, q.y - 35, 70, 70, 8);
+                noStroke();
+                fill(255, 170, 0);
+                textSize(10);
+                textAlign(RIGHT, BOTTOM);
+                text('×' + BLIND, q.x + 35, q.y - 37);
+            }
+            // Behind a visual block: curtain-red outline, multiplier top left
+            if (q.behindBlock) {
+                noFill();
+                stroke(200, 60, 60);
+                strokeWeight(2);
+                rect(q.x - 33, q.y - 33, 66, 66, 7);
+                noStroke();
+                fill(220, 80, 80);
+                textSize(10);
+                textAlign(LEFT, BOTTOM);
+                text('×' + BLOCK, q.x - 35, q.y - 37);
+            }
+            q.e.draw(q.x, q.y, q.n, q.e === sel);
+        }
     });
 
     if (running && !paused) {
@@ -443,7 +579,7 @@ function draw() {
     // Doorways: visual blocks, or a faint marker where one can go
     list.forEach(q => {
         if (q.door === null) return;
-        if (q.e.kind == 'block') q.e.drawBlock(q.x, q.y, q.n, q.e === sel, q.h * HALF_PI);
+        if (q.e.kind == 'block') q.e.drawBlock(q.x, q.y, q.n, q.e === sel);
         else if (q.e === sel) {
             noFill();
             stroke(255, 200, 0);
@@ -453,25 +589,8 @@ function draw() {
     });
     pop();
 
-    // Fear chart: one bar per numbered encounter, in route order, along the bottom
-    stroke(40);
-    strokeWeight(1);
-    line(20, LAYOUT_H + 2, W - 20, LAYOUT_H + 2);
-    list.forEach(q => {
-        if (q.e.hits > 0 && q.n) {
-            const x = 20 + (q.n - 0.5) * (W - 40) / max(1, n);
-            const h = min(70, q.e.total / q.e.hits * 1.4);
-            fill(192, 57, 43);
-            noStroke();
-            rect(x - 8, H - 18 - h, 16, h);
-            fill(200);
-            textSize(10);
-            textAlign(CENTER, CENTER);
-            text('#' + q.n, x, H - 9);
-        }
-    });
-
     updateExitStats();
+    if (frameCount % 10 == 0) updateScareTable(list);
 
     if (running && !paused && frameCount % 10 == 0) {
         const f = group.length > 0 ? group.reduce((a, v) => a + v.fear, 0) / group.length : 0;
@@ -480,11 +599,49 @@ function draw() {
 }
 
 function updateExitStats() {
-    const parts = [];
+    const parts = [], ex = house.exits();
     house.segs.forEach((s, i) => {
-        if (s.flee()) parts.push(`${locName(i)} exit: ${house.exitCounts[i]}`);
+        if (ex[i]) parts.push(`${locName(i)} exit: ${house.exitCounts[i]}`);
     });
+    // panicked visitors who ran on out through the house exit (from the last location)
+    if (house.segs.length && !ex[house.segs.length - 1]) parts.push(`House exit: ${house.fledOut || 0}`);
     document.getElementById('exit-counts').innerHTML = parts.join(' | ');
+}
+
+// What an encounter is, in a few words
+function encDesc(e) {
+    if (e.kind == 'block') return 'visual block (raises anticipation)';
+    const bits = [e.core];
+    if (e.conc != 'none') bits.push('behind ' + e.conc);
+    if (e.vis != 'none') bits.push(e.vis);
+    if (e.snd != 'none') bits.push(e.snd + ' sound');
+    return e.kind + ': ' + bits.join(', ');
+}
+
+// Where an encounter is: a doorway, or a location's floor / wall slot
+function encWhere(q) {
+    if (q.door !== null) return q.door == 0 ? 'Entrance' : 'Doorway after ' + locName(q.door - 1);
+    return locName(q.loc) + ' ' + q.place;
+}
+
+// Fear per encounter (numbered as on the map, in route order)
+let lastTable = '';
+function updateScareTable(list) {
+    const rows = list.filter(q => q.n).map(q => {
+        const e = q.e, avg = e.hits ? e.total / e.hits : 0;
+        const bar = e.hits ? `<span class="bar" style="width:${min(100, avg * 1.5).toFixed(0)}%"></span>` : '';
+        return `<tr><td>#${q.n}</td><td><span class="where">${encWhere(q)}</span><br>${encDesc(e)}</td>` +
+            `<td class="num">${e.hits || '–'}</td><td class="num">${e.hits ? avg.toFixed(1) : '–'}${bar}</td>` +
+            `<td class="num">${e.hits ? e.total.toFixed(0) : '–'}</td></tr>`;
+    });
+    const html = rows.length
+        ? `<table><thead><tr><th>#</th><th>Encounter</th><th class="num">Hits</th>` +
+          `<th class="num">Avg</th><th class="num">Total</th></tr></thead><tbody>${rows.join('')}</tbody></table>`
+        : '<span class="mut">No encounters placed yet.</span>';
+    if (html != lastTable) {
+        document.getElementById('scare-stats').innerHTML = html;
+        lastTable = html;
+    }
 }
 
 function summary() {

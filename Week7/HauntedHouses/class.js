@@ -31,9 +31,12 @@ class Encounter {
     // Concealments allowed here: a wall slot needs an opening in the wall,
     // a floor slot is open or behind a free-standing screen/display.
     // A visual cue is shown openly or on a display.
+    // A screen works by the scare coming up close behind it, so a stationary
+    // core (which can't move) can't use one.
     concOptions() {
         if (this.kind == 'cue') return this.place == 'wall' ? ['display'] : ['none', 'display'];
-        return this.place == 'wall' ? WALL_CONC : FLOOR_CONC;
+        const ok = this.place == 'wall' ? WALL_CONC : FLOOR_CONC;
+        return this.core == 'stationary' ? ok.filter(c => c != 'screen') : ok;
     }
 
     sanitize() {
@@ -67,31 +70,32 @@ class Encounter {
         if (this.ring > 0) this.ring--;
     }
 
-    // ang: direction of the route through this doorway (the curtain hangs across it)
-    drawBlock(x, y, n, s, ang = 0) {
+    // Visual block on a doorway: a square icon like the other slots, with the
+    // curtain always hanging down (whichever way the route goes through it);
+    // it sways when visitors push through
+    drawBlock(x, y, n, s) {
         push();
         translate(x, y);
-        push();
-        rotate(ang);
         if (s) {
             noFill();
             stroke(255, 200, 0);
             strokeWeight(2);
-            rect(-26, -36, 52, 72, 6);
+            rect(-31, -31, 62, 62, 6);
         }
+        stroke(70);
+        strokeWeight(1);
+        fill(18);
+        rect(-26, -26, 52, 52, 4);
         noStroke();
-        const sw = this.open * 6;
-        // curtain 64 long: fits across a 72-wide corridor or doorway
+        const sw = this.open * 3;
         for (let i = -3; i <= 3; i++) {
             fill(120 + i * 4, 25, 28, 238);
-            rect(i * 7 - 3 + sin(frameCount * .3 + i) * sw, -32, 6, 64 + (i % 2 ? -6 : 0));
+            rect(i * 7 - 3 + sin(frameCount * .3 + i) * sw, -23, 6, 46 + (i % 2 ? -6 : 0));
         }
-        pop();
-        // label stays upright, next to the curtain
         fill(150);
         textSize(10);
         textAlign(CENTER, CENTER);
-        if (n) text('#' + n, abs(sin(ang)) > .5 ? 46 : 0, abs(sin(ang)) > .5 ? 0 : 46);
+        if (n) text('#' + n, 0, 38);
         pop();
     }
 
@@ -118,7 +122,12 @@ class Encounter {
             fill(120, 30, 30);
             for (let i = -3; i <= 3; i++) rect(i * 7 - 3, -24, 6, 48 + (i % 2 ? -6 : 0));
         } else {
+            // Behind a screen the scare is far back (small) until it is
+            // revealed: then it comes right up to the screen
+            push();
+            if (this.conc == 'screen') scale(lerp(.55, 1, this.open));
             drawCore(this.core);
+            pop();
             if (this.vis == 'darkness') {
                 fill(0, 0, 0, 190 * (1 - this.open * .6));
                 rect(-25, -25, 50, 50);
@@ -142,6 +151,14 @@ class Encounter {
                 stroke(90, 255, 90, this.ring * 8);
                 strokeWeight(2);
                 ellipse(0, 0, (30 - this.ring) * 4, (30 - this.ring) * 4);
+            }
+            // A scare in the open or in a display case has nothing to open, so it
+            // flashes red when it strikes
+            if (this.kind == 'scare' && this.reveal > 0 && (this.conc == 'none' || this.conc == 'display')) {
+                noFill();
+                stroke(255, 60, 60, this.reveal * 3.5);
+                strokeWeight(3);
+                rect(-27, -27, 54, 54, 5);
             }
         }
         noStroke();
@@ -198,18 +215,28 @@ function drawConc(k, o) {
         rect(-12, -18, 24, 14);
     }
     if (k == 'screen') {
-        fill(110, 160, 210, a * .85);
-        stroke(60, a);
+        // A screen never opens: it stays in place and turns see-through as the
+        // scare comes up close behind it
+        fill(110, 160, 210, lerp(220, 60, o));
+        stroke(60);
         rect(-22, -20, 44, 40);
         line(0, -20, 0, 20);
         line(-22, 0, 22, 0);
     }
     if (k == 'display') {
-        fill(30, 45, 45, a * .9);
-        stroke(120, a);
-        rect(-20, -26, 40, 52);
-        line(0, -26, 0, 26);
-        line(-20, 0, 20, 0);
+        // A display case never opens: the piece inside is on show the whole
+        // time, behind glass (a faint tint, a frame and a glare stripe)
+        fill(150, 200, 210, 40);
+        stroke(150, 170, 175);
+        strokeWeight(1.5);
+        rect(-23, -25, 46, 50, 2);
+        noStroke();
+        fill(90, 70, 60);
+        rect(-23, 21, 46, 4);            // plinth
+        stroke(255, 255, 255, 90);
+        strokeWeight(2);
+        line(-17, -19, -6, -8);          // glare
+        line(-17, -11, -11, -5);
     }
     if (k == 'shutter') {
         translate(0, -o * 46);
@@ -220,10 +247,12 @@ function drawConc(k, o) {
     pop();
 }
 
-const BLIND = 1.5;      // scare multiplier on the blind side of a direction change
+const BLIND = 1.5;      // multiplier for scares just after a direction change (blind side)
+const BLIND_D = 100;    // ...in this first stretch of the location after the turn
+const BLOCK = 1.2;      // multiplier for scares in that first stretch behind a visual block
 const ROUTE_PAD = 1000; // the route starts this far before the entrance (visitors queue there)
 const MAX_LOCS = 8;
-
+const WAY_LEN = 3000;   // how far the ways in and out of the house are kept clear
 // Wall slots sit in the hidden staff area behind a wall, so they need an opening;
 // floor slots are in the visitors' space: open, or behind a free-standing screen/display.
 const WALL_CONC = ['door', 'screen', 'shutter', 'display'];
@@ -270,6 +299,7 @@ class Location {
             this.enc[s.id].place = s.place;
         });
         this.turnLogged = false;
+        this.emergency = false; // the player wants an emergency exit here (House.exits places it)
     }
     spec(id) { return this.specs().find(s => s.id == id) }
     // -1 = exit turns left, 0 = straight on, +1 = turns right
@@ -278,8 +308,47 @@ class Location {
     routeLocal() { return [[0, 0], [this.len, 0]] }
     // Where the route turns (if it does)
     get turnPt() { return null }
-    // Emergency exit: where panicking visitors leave the route, and the door they run to
-    flee() { return null }
+
+    // Possible spots for an emergency door (local points on the walls), best
+    // first: side walls before end walls, each from its middle outwards. Never
+    // in a doorway or a wall slot's opening (or right next to one).
+    doorSpots() {
+        const b = this.body, r = this.routeLocal(), ex = r[r.length - 1];
+        const ways = [[0, 0], ex];                       // entrance and exit doorways
+        const openings = this.specs().filter(s => s.opening).map(s => s.opening);
+        const walls = [
+            { y: b[1], a: b[0], z: b[2] }, { y: b[3], a: b[0], z: b[2] },   // side walls
+            { x: b[2], a: b[1], z: b[3] }, { x: b[0], a: b[1], z: b[3] },   // front, back
+        ];
+        const spots = [];
+        walls.forEach(w => {
+            const onWall = (px, py) => (w.x !== undefined ? px == w.x : py == w.y);
+            const along = (px, py) => (w.x !== undefined ? py : px);
+            const mid = (w.a + w.z) / 2, half = (w.z - w.a) / 2 - DOOR_HALF;
+            for (let o = 0; o <= half; o += 2) for (const t of o ? [mid + o, mid - o] : [mid]) {
+                const busy = ways.some(([px, py]) => onWall(px, py) && abs(along(px, py) - t) < 30 + DOOR_HALF + 4) ||
+                    openings.some(op => onWall(op[0], op[1]) && onWall(op[2], op[3]) &&
+                        t + DOOR_HALF + 4 > min(along(op[0], op[1]), along(op[2], op[3])) &&
+                        t - DOOR_HALF - 4 < max(along(op[0], op[1]), along(op[2], op[3])));
+                if (!busy) spots.push(w.x !== undefined ? [w.x, t] : [t, w.y]);
+            }
+        });
+        return spots;
+    }
+}
+
+const DOOR_HALF = 14;   // an emergency door is 28 wide
+const DOOR_CLEAR = 24;  // ...and needs this much free space outside it
+
+// What an emergency door (local point on a wall of location s) opens onto: a
+// strip as wide as the door and `depth` deep just outside that wall, in world
+// space (g = s's placement)
+function doorStrip(s, door, g, depth = DOOR_CLEAR) {
+    const [mx, my] = door, b = s.body;
+    const end = mx == b[0] || mx == b[2]; // in an end wall, else a side wall
+    const out = end ? (mx == b[2] ? depth : -depth) : (my == b[3] ? depth : -depth);
+    const r = end ? [mx, my - DOOR_HALF, mx + out, my + DOOR_HALF] : [mx - DOOR_HALF, my, mx + DOOR_HALF, my + out];
+    return rectW(g, [min(r[0], r[2]), min(r[1], r[3]), max(r[0], r[2]), max(r[1], r[3])]);
 }
 
 // Square room, 240 x 240: 4 floor slots and 2 slots on each wall (8).
@@ -297,9 +366,6 @@ class Room extends Location {
     get turnPt() { return this.exitTurn ? this.center : null }
     exitLocal() { return { straight: [240, 0], left: [120, -120], right: [120, 120] }[this.exit] }
     routeLocal() { return [[0, 0], this.center, this.exitLocal()] }
-    // Emergency exit on a wall that is not a doorway (right wall, or left if the exit is on the right)
-    emergencyLocal() { return this.exit == 'right' ? [120, -120] : [120, 120] }
-    flee() { return { via: this.center, door: this.emergencyLocal() } }
     specs() {
         return [
             floorSlot('f1', 60, -60, ['B1', 'L1']), floorSlot('f2', 60, 60, ['B2', 'R1']),
@@ -320,20 +386,18 @@ class Room extends Location {
     }
 }
 
-// Corridor, 240 long and 72 wide, one direction only. No floor slots:
+// Corridor, 120 long and 72 wide, one direction only. No floor slots:
 // one slot behind each side wall.
 class Corridor extends Location {
     get kind() { return 'corridor' }
-    get len() { return 240 }
-    get body() { return [0, -36, 240, 36] }
-    // Emergency door at x = 78: clear of the previous location's hidden areas
-    // (they reach up to 64 into the corridor) and of this corridor's own slots (92..148)
-    flee() { return { via: [78, 0], door: [78, 36] } }
-    emergencyLocal() { return [78, 36] }
+    get len() { return 120 }
+    get body() { return [0, -36, this.len, 36] }
+    // The previous location's hidden areas can reach 64 into the corridor, so its
+    // wall slots sit in the second half (64..120)
     specs() {
         return [
-            wallSlot('L', 120, -70, [92, -100, 148, -36], [98, -36, 142, -36], []),
-            wallSlot('R', 120, 70, [92, 36, 148, 100], [98, 36, 142, 36], []),
+            wallSlot('L', 92, -70, [64, -100, 120, -36], [70, -36, 114, -36], []),
+            wallSlot('R', 92, 70, [64, 36, 120, 100], [70, 36, 114, 36], []),
         ];
     }
 }
@@ -393,19 +457,30 @@ class House {
         return false;
     }
 
+    // Visitor space outside the house: the way in (the queue before the
+    // entrance) and the way out (after the last exit), each a 72-wide path
+    // running straight on to well beyond the map.
+    ways(L) {
+        const dn = L.doors[L.doors.length - 1];
+        return [rectW(L.doors[0], [-WAY_LEN, -36, 0, 36]), rectW(dn, [0, -36, WAY_LEN, 36])];
+    }
+
+    // Would a location stand across the way in or out? (Then visitors would walk
+    // into the house, or leave it, through another part of it.)
+    blocksWay(segs = this.segs) {
+        if (!segs.length) return false;
+        const L = this.layout(segs), way = this.ways(L);
+        return segs.some((s, i) => way.some(w => overlaps(w, rectW(L.locs[i], s.body))));
+    }
+
     // Every slot in world space, with its state.
     // A wall slot has no space if its hidden area overlaps another location, or the
     // hidden area of an earlier location's wall slot.
     slotInfo(segs = this.segs) {
         const L = this.layout(segs);
         const bodies = segs.map((s, i) => rectW(L.locs[i], s.body));
-        // The queue before the entrance and the walkway after the last exit are
-        // visitor space too: no hidden area may be there.
-        if (segs.length) {
-            const dn = L.doors[L.doors.length - 1];
-            bodies.push(rectW(L.locs[0], [-64, -36, 0, 36]));
-            bodies.push(rectW({ x: dn.x, y: dn.y, h: dn.h }, [0, -36, 64, 36]));
-        }
+        // The ways in and out are visitor space too: no hidden area may be there.
+        if (segs.length) bodies.push(...this.ways(L));
         const out = [], taken = [];
         segs.forEach((s, i) => {
             const g = L.locs[i];
@@ -445,16 +520,44 @@ class House {
             q.d = this.project(q.x, q.y, R, lo, hi);
             r.push(q);
         });
-        return r.sort((a, b) => a.d - b.d);
+        r.sort((a, b) => a.d - b.d);
+        // These bonuses belong to the slot (shown even while it is empty);
+        // only a scare or cue placed there makes use of them.
+        // Blind side: visitors can't see into the location after a turn until
+        // they have turned into it, so the scares they reach in its first BLIND_D
+        // units catch them unprepared. Only a Corner's tight turn counts: a room
+        // turns in its centre, too far from the next location to hide it. A
+        // corner after a turn gets nothing either: it is itself a turn.
+        r.forEach(q => q.blind = false);
+        this.segs.forEach((s, i) => {
+            if (s.kind != 'corner' || i + 1 >= this.segs.length || this.segs[i + 1].kind == 'corner') return;
+            const start = R.locD[i + 1];
+            r.forEach(q => {
+                if (q.loc === i + 1 && !q.blockedBy.length &&
+                    q.d - start <= BLIND_D) q.blind = true;
+            });
+        });
+        // Behind a visual block: a curtain on a location's entrance hides what is
+        // just behind it, so the scares in the same first stretch hit harder too.
+        r.forEach(q => q.behindBlock = false);
+        this.segs.forEach((s, i) => {
+            if (!this.doors[i] || this.doors[i].kind != 'block') return;
+            const start = R.locD[i];
+            r.forEach(q => {
+                if (q.loc === i && !q.blockedBy.length &&
+                    q.d - start <= BLIND_D) q.behindBlock = true;
+            });
+        });
+        return r;
     }
 
-    // Bounding box of everything that gets drawn
-    bounds() {
-        const L = this.layout();
+    // Bounding box of everything that gets drawn (for the house as it is, or as segs)
+    bounds(segs = this.segs) {
+        const L = this.layout(segs);
         let b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
         const add = r => { b.x0 = min(b.x0, r.x0); b.y0 = min(b.y0, r.y0); b.x1 = max(b.x1, r.x1); b.y1 = max(b.y1, r.y1); };
-        this.segs.forEach((s, i) => add(rectW(L.locs[i], s.body)));
-        this.slotInfo().forEach(q => { if (q.region && q.space) add(q.region); });
+        segs.forEach((s, i) => add(rectW(L.locs[i], s.body)));
+        this.slotInfo(segs).forEach(q => { if (q.region && q.space) add(q.region); });
         add({ x0: -50, y0: -40, x1: 0, y1: 40 }); // queue before the entrance
         const dn = L.doors[L.doors.length - 1], [hx, hy] = HEAD[dn.h];
         add({ x0: dn.x + hx * 50 - 40, y0: dn.y + hy * 50 - 40, x1: dn.x + hx * 50 + 40, y1: dn.y + hy * 50 + 40 });
@@ -513,15 +616,60 @@ class House {
         return bestD;
     }
 
+    // Emergency exit of every location: {door (local point on its wall), d (where
+    // panicking visitors leave the route)}, or null where the player didn't ask
+    // for one, or no spot is clear. A door goes at the first of its location's
+    // doorSpots() whose outside is free: no other location's floor, hidden area,
+    // slot icon, way in or out, or other emergency exit. Cached per layout.
+    exits() {
+        const key = this.segs.map(s => [s.kind, s.exit, s.side, s.emergency].join()).join('|');
+        if (this._exits && this._exits.key == key) return this._exits.val;
+        const L = this.layout(), R = this.route(L);
+        const bodies = this.segs.map((s, i) => rectW(L.locs[i], s.body));
+        const blocked = [...this.ways(L)];
+        this.slotInfo().forEach(q => {
+            if (!q.space) return;
+            blocked.push({ x0: q.x - 30, y0: q.y - 30, x1: q.x + 30, y1: q.y + 30 });
+            if (q.region) blocked.push(q.region);
+        });
+        const val = this.segs.map((s, i) => {
+            if (!s.emergency) return null;
+            const door = s.doorSpots().find(p => {
+                const w = doorStrip(s, p, L.locs[i]);
+                return !bodies.some((b, j) => j != i && overlaps(w, b)) && !blocked.some(o => overlaps(w, o));
+            });
+            if (!door) return null;
+            blocked.push(doorStrip(s, door, L.locs[i])); // exits keep clear of each other
+            const [wx, wy] = toW(L.locs[i], door[0], door[1]);
+            const hi = i + 1 < R.locD.length ? R.locD[i + 1] : R.endD;
+            return { door, d: this.project(wx, wy, R, R.locD[i], hi) };
+        });
+        this._exits = { key, val };
+        return val;
+    }
+
+    hasExit(i) { return !!this.exits()[i] }
+
+    // Where the rule "every 3 locations in a row (or the whole house, if it is
+    // shorter) have an emergency exit" is broken: the first location of each
+    // such run. The last location needs none: it opens onto the house exit.
+    exitGaps(ex = this.exits()) {
+        const n = this.segs.length, w = min(3, n), gaps = [];
+        for (let i = 0; i + w <= n; i++)
+            if (i + w < n && !ex.slice(i, i + w).some(Boolean)) gaps.push(i);
+        return gaps;
+    }
+
     // Emergency exit of location i, in world space: d where the visitor leaves the route, and the door
-    fleeTarget(i, L = this.layout(), R = this.route(L)) {
-        const f = this.segs[i].flee();
+    fleeTarget(i, L = this.layout()) {
+        const f = this.exits()[i];
         if (!f) return null;
-        return { d: R.locD[i] + f.via[0], door: toW(L.locs[i], f.door[0], f.door[1]) };
+        return { d: f.d, door: toW(L.locs[i], f.door[0], f.door[1]) };
     }
 
     updateExits() {
         this.exitCounts = this.segs.map(() => 0);
+        this.fledOut = 0; // panicked visitors who ran out through the house exit
     }
 }
 
@@ -543,7 +691,6 @@ class Visitor {
             fled: false,
             out: false,
             targetExitIdx: null,
-            blindLocs: new Set(), // locations entered right after a turn
             turnFlash: 0,
             // distance walked along the house route; x <= 0 means waiting before the entrance
             d: x + ROUTE_PAD
@@ -551,13 +698,17 @@ class Visitor {
     }
 
     // Emergency exit to run to: the location the visitor is in, or the nearest one
-    // before it that has an exit (corners have none), else the next one after it.
+    // before it that has an exit, else the next one after it. The last location
+    // without an emergency exit of its own sends them on out of the house exit
+    // ('house').
     pickExit(R) {
         let cur = 0;
         R.locD.forEach((d, i) => { if (this.d >= d) cur = i; });
-        for (let i = cur; i >= 0; i--) if (house.segs[i].flee()) return i;
-        for (let i = cur + 1; i < house.segs.length; i++) if (house.segs[i].flee()) return i;
-        return null;
+        const ex = house.exits(), last = house.segs.length - 1;
+        if (cur == last && !ex[cur]) return 'house';
+        for (let i = cur; i >= 0; i--) if (ex[i]) return i;
+        for (let i = cur + 1; i <= last; i++) if (ex[i]) return i;
+        return 'house';
     }
 
     update(list, grp) {
@@ -565,10 +716,13 @@ class Visitor {
         const L = house.layout(), R = house.route(L);
         if (this.fled) {
             if (this.targetExitIdx === null) this.targetExitIdx = this.pickExit(R);
-            if (this.targetExitIdx === null) { // nowhere to go: walk back out of the entrance
-                this.d -= 3;
+            if (this.targetExitIdx == 'house') { // run on out of the house exit
+                this.d += 3;
                 [this.x, this.y] = house.pointAt(this.d, R);
-                if (this.d < ROUTE_PAD - 40) this.out = true;
+                if (this.d > R.endD) {
+                    this.out = true;
+                    house.fledOut++;
+                }
                 return;
             }
             const t = house.fleeTarget(this.targetExitIdx, L, R);
@@ -599,18 +753,18 @@ class Visitor {
         if (this.turnFlash > 0) this.turnFlash--;
 
         // Direction change: turning in a room (side exit) or a corner.
-        // The next location could not be seen before the turn: its scares are on the blind side.
+        // The next location could not be seen before the turn: scares at its start
+        // are on the blind side (marked by House.slots, applied in react()).
         house.segs.forEach((s, i) => {
             if (R.turnD[i] === null || this.done.has(s) || this.d < R.turnD[i] + 1) return;
             this.done.add(s);
             this.ant = min(60, this.ant + 6);
-            this.blindLocs.add(i + 1);
             this.turnFlash = 40;
             if (!s.turnLogged) {
                 s.turnLogged = true;
                 const nxt = house.segs[i + 1];
                 note("Visitor " + this.id + " turns " + (s.exitTurn < 0 ? 'left' : 'right') + " in " + s.kind + " " + (i + 1) +
-                    (nxt ? ": " + nxt.kind + " " + (i + 2) + " is on the blind side" : ""));
+                    (nxt && s.kind == 'corner' && nxt.kind != 'corner' ? ": the start of " + nxt.kind + " " + (i + 2) + " is on the blind side" : ""));
             }
         });
 
@@ -636,16 +790,22 @@ class Visitor {
             e.reveal = 40;
         } else if (e.kind == 'cue') {
             this.focus = 150;
-            this.add(e, 4 + (e.vis == 'flashing' ? 4 : 0), grp, o);
+            e.ring = 30; // a green pulse: it caught the visitor's eye
+            // its own small fright is stronger just after a turn or behind a curtain too
+            this.add(e, (4 + (e.vis == 'flashing' ? 4 : 0)) * (o.blind ? BLIND : 1) * (o.behindBlock ? BLOCK : 1), grp, o);
         } else {
             let m = 1 + this.ant / 100, why = '';
             if (this.focus > 0) {
                 m *= 1.7;
-                why = ' (misdirection ×1.7)';
+                why = ' (×1.7)';
             }
-            if (o.loc !== null && this.blindLocs.has(o.loc)) {
+            if (o.blind) {
                 m *= BLIND;
-                why += ' (blind side ×' + BLIND + ')';
+                why += ' (×' + BLIND + ')';
+            }
+            if (o.behindBlock) {
+                m *= BLOCK;
+                why += ' (×' + BLOCK + ')';
             }
             m /= 1 + .5 * (this.seen[e.core] || 0);
             m *= 1 - this.numb;
