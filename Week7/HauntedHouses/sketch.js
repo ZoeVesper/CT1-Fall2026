@@ -189,7 +189,7 @@ function removeSelected() {
         q.e.sanitize();
         q.e.total = q.e.hits = 0;
         edit();
-        note("Removed the " + was + (q.door !== undefined && q.door !== null ? " from the doorway." : " in " + locName(q.loc) + "."));
+        note("Removed the " + was + (q.door !== undefined && q.door !== null ? " from the doorway slot." : " in " + locName(q.loc) + "."));
         return;
     }
 }
@@ -290,7 +290,12 @@ function randomEncounters() {
 function randomSelected() {
     const q = selInfo();
     if (q && q.door !== undefined && q.door !== null) {
-        note("A doorway only holds a visual block: select a slot or a location to randomise.");
+        // a doorway slot only holds a visual block
+        stopRun();
+        blk(house, [q.door]);
+        q.e.total = q.e.hits = 0;
+        edit();
+        note("New visual block in the doorway slot.");
         return;
     }
     if (q) {
@@ -465,13 +470,15 @@ function edit() {
     const q = selInfo();
     if (!q) {
         sel = null;
-        return show('Select a slot, room or doorway…');
+        return show('Select a slot or a location…');
     }
     const e = q.e;
     if (q.door !== undefined && q.door !== null) {
-        return e.kind == 'block'
-            ? show('<b>Visual Block</b>', '<button onclick="removeSelected()">Clear Encounter</button>')
-            : show('<b>Doorway</b>', '<button onclick="setF(\'kind\',\'block\')">Add Visual Block</button>');
+        // A doorway slot (on the dashed path) holds only a visual block
+        const types = e.kindOptions().map(x =>
+            `<option value="${x}" ${x == e.kind ? 'selected' : ''}>${x == 'block' ? 'Visual block' : cap(x)}</option>`).join('');
+        return show(`<b>Doorway Slot</b><label>Type <select onchange="setF('kind',this.value)">${types}</select></label>`,
+            e.kind == 'block' ? '<button onclick="removeSelected()">Clear Encounter</button>' : '');
     }
     if (q.blockedBy && q.blockedBy.length)
         return show(`<b>Blocked</b> by the ${q.blockedBy[0].place} slot next to it`);
