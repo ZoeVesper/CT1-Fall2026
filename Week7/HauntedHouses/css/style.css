@@ -335,3 +335,12 @@ label {
     color: #d9b;
     min-height: 90px;
 }
+
+/* A rule shown under a chart category's name (the safety rule under Location) */
+.chart-note {
+    margin-top: 4px;
+    font-size: .75rem;
+    font-weight: normal;
+    line-height: 1.4;
+    color: var(--mut);
+}

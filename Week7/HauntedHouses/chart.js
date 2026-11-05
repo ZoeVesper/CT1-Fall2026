@@ -59,9 +59,9 @@ const SHARED = {
 
 const CHART = [
     {
-        cat: 'Location', items: [
-            { id: 'room', name: 'Room', tip: 'Default lighting and sound. 4 floor slots, plus 2 slots behind each wall, for adding encounters. Optional emergency exit (green); every 3 locations in a row need one, but the last location already leads to the house exit.' },
-            { id: 'corridor', name: 'Corridor', tip: 'Default lighting and sound. Runs straight, or turns 90° left or right when Direction change is chosen as the optional strategy. 1 slot behind each side wall. Optional emergency exit (green); every 3 locations in a row need one, but the last location already leads to the house exit.' },
+        cat: 'Location', note: 'Safety rule: every 3 locations in a row need an emergency exit (green); the last location already leads to the house exit.', items: [
+            { id: 'room', name: 'Room', tip: 'Default lighting and sound. 4 floor slots, plus 2 slots behind each wall, for adding encounters. Optional emergency exit (green).' },
+            { id: 'corridor', name: 'Corridor', tip: 'Default lighting and sound. Runs straight, or turns 90° left or right when Direction change is chosen as the optional strategy. 1 slot behind each side wall. Optional emergency exit (green).' },
         ]
     },
     {
@@ -103,7 +103,7 @@ const CHART = [
     const root = document.getElementById('chart');
     if (!root) return;
     root.innerHTML = CHART.map(row =>
-        `<div class="chart-row"><div class="chart-cat">${row.cat}</div><div class="chart-items">` +
+        `<div class="chart-row"><div class="chart-cat">${row.cat}${row.note ? `<div class="chart-note">${row.note}</div>` : ''}</div><div class="chart-items">` +
         row.items.map(it =>
             `<div class="chart-item" tabindex="0" data-tip="${it.tip.replace(/"/g, '&quot;')}">${ICONS[it.id]}<span>${it.name}</span></div>`
         ).join('') + `</div></div>`
