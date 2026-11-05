@@ -54,7 +54,7 @@ Object.entries(PICTURES).forEach(([id, file]) =>
 
 const SHARED = {
     core: 'Repeating the same core weakens it for that visitor.',
-    conc: 'Any concealment adds +12 strength. Wall slots sit in a hidden staff area (dashed box) and need one, shown as an opening in the wall (orange line).',
+    conc: 'Any concealment adds +12 strength.',
 };
 
 const CHART = [
@@ -65,18 +65,18 @@ const CHART = [
         ]
     },
     {
-        cat: 'Core', items: [
-            { id: 'actor', name: 'Actor', tip: 'A live performer. Base strength ' + BASE.actor + '. ' + SHARED.core },
-            { id: 'installation', name: 'Installation', tip: 'A mechanical figure. Base strength ' + BASE.installation + '. ' + SHARED.core },
-            { id: 'stationary', name: 'Stationary', tip: 'A still prop. Base strength ' + BASE.stationary + '. It can’t move, so it can’t use a Screen. ' + SHARED.core },
+        cat: 'Core', note: SHARED.core, items: [
+            { id: 'actor', name: 'Actor', tip: 'A live performer. Base strength ' + BASE.actor + '.' },
+            { id: 'installation', name: 'Installation', tip: 'A mechanical figure. Base strength ' + BASE.installation + '.' },
+            { id: 'stationary', name: 'Stationary', tip: 'A still prop. Base strength ' + BASE.stationary + '. It can’t move, so it can’t use a Screen.' },
         ]
     },
     {
-        cat: 'Concealment', items: [
-            { id: 'door', name: 'Door', tip: 'Wall slots only; swings open to reveal the scare. ' + SHARED.conc },
-            { id: 'shutter', name: 'Shutter', tip: 'Wall slots only; rolls up to reveal the scare. ' + SHARED.conc },
-            { id: 'screen', name: 'Screen', tip: 'Wall or floor slot (free-standing on the floor). It never opens: the scare suddenly comes up close behind it and shows through. Needs a core that can move, so not with Stationary. ' + SHARED.conc },
-            { id: 'display', name: 'Display', tip: 'A glass display case: the piece inside is on show the whole time; it never opens. Wall or floor slot. The only concealment a Visual Cue can use. ' + SHARED.conc },
+        cat: 'Concealment', note: SHARED.conc, items: [
+            { id: 'door', name: 'Door', tip: 'Wall slots only; swings open to reveal the scare.' },
+            { id: 'shutter', name: 'Shutter', tip: 'Wall slots only; rolls up to reveal the scare.' },
+            { id: 'screen', name: 'Screen', tip: 'Wall or floor slot (free-standing on the floor). It never opens: the scare suddenly comes up close behind it and shows through. Needs a core that can move, so not with Stationary.' },
+            { id: 'display', name: 'Display', tip: 'A glass display case: the piece inside is on show the whole time; it never opens. Wall or floor slot. The only concealment a Visual Cue can use.' },
         ]
     },
     {
