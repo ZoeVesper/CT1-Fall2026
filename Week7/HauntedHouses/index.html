@@ -39,9 +39,16 @@
 
     <div class="test-row">
         <b>2. Test</b>
-        <button id="btnStart" onclick="startTest()">Start Test</button>
-        <button id="btnPause" onclick="togglePause()" title="Pause or resume the test (Space)">Pause</button>
-        <button id="btnEnd" onclick="endTest()">End Test</button>
+        <div class="test-btns">
+            <button id="btnStart" onclick="startTest()">Start Test</button>
+            <button id="btnPause" onclick="togglePause()" title="Pause or resume the test (Space)">Pause</button>
+            <button id="btnEnd" onclick="endTest()">End Test</button>
+            <span class="flow">
+                <button id="btnFewer" onclick="changeFlow(-1)" title="Fewer visitors: a bigger gap between them">−</button>
+                <span id="flow">Visitor Flow Lv 1</span>
+                <button id="btnMore" onclick="changeFlow(1)" title="More visitors: a smaller gap between them">+</button>
+            </span>
+        </div>
     </div>
 </div>
 
@@ -70,11 +77,11 @@
 
         <h2>Process</h2>
         <ol style="padding-left: 1.4em;">
-            <li><b>Element catalogue.</b> From my <a href="#elements" style="color:#e55">Element Chart</a>, I defined every element: locations (Room with 4 floor slots + 2 slots behind each wall; Corridor, straight or turning, with 1 slot behind each side wall); cores (Actor, Installation, Stationary); concealments (Door, Shutter, Screen, Display); visual add-ons (Darkness, Flashing Light); audio add-on (Sudden Sound); optional strategies (Visual Block, Visual Cue, Direction Change).</li>
+            <li><b>Element catalogue.</b> From my <a href="#elements" style="color:#e55">Element Chart</a>, I defined every element: locations (Room with 4 floor slots + 2 slots behind each wall; Corridor, straight or turning, with 2 wall slots); cores (Actor, Installation, Stationary); concealments (Door, Shutter, Screen, Display); visual add-ons (Darkness, Flashing Light); audio add-on (Sudden Sound); optional strategies (Visual Block, Visual Cue, Direction Change).</li>
             <li><b>Rules as constraints.</b> Wall slots are in a hidden staff area, so they must use a concealment (Door, Shutter, Screen or Display); floor slots have no concealment or use a free-standing Screen or Display. A floor slot and the wall slots next to it rule each other out. A Visual Cue is a core with a Display or no concealment, plus an optional Flashing Light, so the editor only offers those options for it. A Direction Change is not a slot: a room can exit through its left or right wall, or a corridor can turn left or right. Locations may not overlap, and a new location may not cover the hidden area of a wall slot in use. Default lighting and sound are implied everywhere.</li>
-            <li><b>UML.</b> The structure became classes: a House is composed of Locations (Room and Corridor extend an abstract Location) and the doorway slots between them; each Location owns its floor and wall slots. Every slot holds an Encounter, whose element categories (core, concealment, visual add-on, audio add-on) are attributes, each limited to a fixed set of values. The optional strategies are kinds of Encounter (Visual Block, which goes in a doorway slot, and Visual Cue) or the shape of a Location (Direction Change). Visitors are separate agents that react to encounters and spread fear to each other.</li>
+            <li><b>UML.</b> The structure became classes: a House is composed of Locations (Room and Corridor extend Location) and the doorway slots between them; each Location owns its floor and wall slots. Every slot holds an Encounter, whose element categories (core, concealment, visual add-on, audio add-on) are attributes, each limited to a fixed set of values. The optional strategies are kinds of Encounter (Visual Block, which goes in a doorway slot, and Visual Cue) or the shape of a Location (Direction Change). Visitors are separate agents that react to encounters and spread fear to each other.</li>
             <li><b>Behaviour.</b> I gave encounters no fixed “scare value”. They only emit stimuli; the visitor’s state decides the result, which is where emergence comes from.</li>
-            <li><b>Emergent properties.</b> The same encounter can be a great scare or a wasted prop depending on its neighbours. A Visual Cue makes the scare that follows hit harder (misdirection), and Visual Blocks and Direction Changes raise anticipation for every later scare. Scares just behind a Visual Block or just after a turning corridor are unseen until the visitor reaches them, so they hit harder. Repeating the same core (habituation) or packing scares too tightly (numbness) weakens them. Fear spreads between nearby visitors, and a visitor who panics runs for an emergency exit, so every later encounter is wasted on them.</li>
+            <li><b>Emergent properties.</b> The same encounter can be a great scare or a wasted prop depending on its neighbours. A Visual Cue makes the scare that follows hit harder (misdirection), and Visual Blocks and Direction Changes raise anticipation for every later scare. Scares just behind a Visual Block or just after a turning corridor are unseen until the visitor reaches them, so they hit harder. Repeating the same core (habituation) or packing scares too tightly (numbness) weakens them. The player also sets the Visitor Flow (Lv 1–6): the higher it is, the closer together visitors walk, and anticipation slows a visitor down so the ones behind catch up. Fear spreads between visitors walking close together. A scare that has just gone off needs a moment to reset, so a visitor right behind can’t set it off again; instead, everyone near it gets a smaller fright, bigger the closer they are. A Visual Cue still catches every visitor’s eye. A visitor who panics runs for an exit, so every later encounter is wasted on them.</li>
         </ol>
 
         <h2>UML Class Diagram</h2>
@@ -135,12 +142,12 @@
                     <text x="28" y="80">- segs: Location[1..8]</text><text x="28" y="96">- doors: Encounter[n+1]</text><text x="28" y="112">- exitCounts: number[]</text>
                     <text x="28" y="136">+ layout() / route()</text><text x="28" y="152">+ slots(): route order, blind</text><text x="28" y="168">+ collides() / blocksWay()</text><text x="28" y="184">+ exits() / exitGaps()</text><text x="28" y="200">+ bounds(): fits the canvas</text>
                     <!-- Location -->
-                    <text x="328" y="56" font-weight="bold">«abstract» Location</text>
+                    <text x="328" y="56" font-weight="bold">Location</text>
                     <text x="328" y="80">- enc: {slotId: Encounter}</text><text x="328" y="96">- emergency: bool</text>
                     <text x="328" y="120">+ kind / body / exitTurn / turnPt</text><text x="328" y="136">+ specs(): slot layout + rules</text><text x="328" y="152">+ routeLocal(): path through it</text><text x="328" y="168">+ doorSpots(): exit door spots</text>
                     <!-- Encounter -->
                     <text x="668" y="56" font-weight="bold">Encounter</text>
-                    <text x="668" y="80">- place: floor | wall | door</text><text x="668" y="96">- kind: EncounterKind</text><text x="668" y="112">- core: Core</text><text x="668" y="128">- conc: Concealment</text><text x="668" y="144">- vis: Visual</text><text x="668" y="160">- snd: Sound</text><text x="668" y="176">- open, reveal, ring: animation</text><text x="668" y="192">- total, hits: fear stats</text>
+                    <text x="668" y="80">- place: floor | wall | door</text><text x="668" y="96">- kind: EncounterKind</text><text x="668" y="112">- core: Core</text><text x="668" y="128">- conc: Concealment</text><text x="668" y="144">- vis: Visual, snd: Sound</text><text x="668" y="160">- cool: wait before it goes off again</text><text x="668" y="176">- open, reveal, ring: animation</text><text x="668" y="192">- total, hits: fear stats</text>
                     <text x="668" y="216">+ kindOptions() / concOptions()</text><text x="668" y="232">+ sanitize(): keep the rules</text><text x="668" y="248">+ power(): base scare strength</text><text x="668" y="264">+ draw() / drawBlock()</text>
                     <!-- Location subclasses -->
                     <text x="183" y="316" font-weight="bold">Room</text><text x="183" y="340">- exit: straight|left|right</text><text x="183" y="356" fill="#a39494">4 floor + 8 wall slots</text><text x="183" y="380">+ specs()</text>
@@ -148,7 +155,7 @@
                     <!-- Visitor -->
                     <text x="748" y="316" font-weight="bold">Visitor (agent)</text>
                     <text x="748" y="340">- d: distance along the route</text><text x="748" y="356">- fear, peak, brave</text><text x="748" y="372">- ant, focus, numb</text><text x="748" y="388">- seen: {core: count}</text><text x="748" y="404">- fled, out, targetExitIdx</text>
-                    <text x="748" y="428">+ update(slots, group)</text><text x="748" y="444">+ react(slot, group)</text><text x="748" y="460">+ add(): fear, spread to group</text><text x="748" y="476">+ pickExit(): nearest exit</text><text x="748" y="492">+ draw()</text>
+                    <text x="748" y="428">+ update(slots, group) / draw()</text><text x="748" y="444">+ react(slot, group): + nearby fright</text><text x="748" y="460">+ scareFear(slot): fear it would get</text><text x="748" y="476">+ add(): fear, spread to group</text><text x="748" y="492">+ pickExit(): exit to run to</text>
                     <!-- Enumerations -->
                     <g font-size="10" fill="#a39494"><text x="28" y="434">«enumeration»</text><text x="168" y="434">«enumeration»</text><text x="308" y="434">«enumeration»</text><text x="448" y="434">«enumeration»</text><text x="588" y="434">«enumeration»</text></g>
                     <text x="28" y="449" font-weight="bold">EncounterKind</text><text x="28" y="470">empty</text><text x="28" y="485">scare</text><text x="28" y="500">cue</text><text x="28" y="515">block</text>
@@ -161,7 +168,7 @@
                 </g>
             </svg>
         </div>
-        <p>Composition (filled diamond): a House is made of 1–8 Locations and the doorway slots between them, and each Location owns its floor and wall slots. Inheritance (triangle): Room and Corridor extend the abstract Location. An Encounter’s element categories are attributes limited to fixed sets of values (enumerations, dashed arrows). Arrows: a Visitor reacts to Encounters, and its fear spreads to nearby Visitors. The note shows how the three strategies are built from these classes.</p>
+        <p>Composition (filled diamond): a House is made of 1–8 Locations and the doorway slots between them, and each Location owns its floor and wall slots. Inheritance (triangle): Room and Corridor extend Location. An Encounter’s element categories are attributes limited to fixed sets of values (enumerations, dashed arrows). Arrows: a Visitor reacts to Encounters, and its fear spreads to nearby Visitors. The note shows how the three strategies are built from these classes.</p>
     </main>
 
     <footer>

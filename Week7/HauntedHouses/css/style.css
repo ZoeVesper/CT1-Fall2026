@@ -140,13 +140,14 @@ button, select {
 #ed {
     display: flex;
     align-items: flex-start; /* buttons stay level with the first row */
-    gap: 12px;
+    flex-wrap: wrap;         /* on a narrow screen the buttons go below */
+    gap: 0 12px;
     box-sizing: border-box;
     min-height: 59px;
 }
 
 #ed .ed-main {
-    flex: 1;
+    flex: 1 1 200px;
     min-height: 41px; /* a button row */
     display: flex;
     flex-wrap: wrap;
@@ -158,21 +159,55 @@ button, select {
     margin-right: 0;
 }
 
+/* Each item in the settings (name, a setting, a checkbox) is a button row high,
+   so wrapped rows line up with the buttons on the right */
+#ed .ed-main > * {
+    min-height: 41px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 #ed .ed-actions {
     display: flex;
+    flex-wrap: wrap;
     flex-shrink: 0;
     gap: 4px;
 }
 
-/* The Test row: its buttons wrap inside the card on a narrow screen */
+/* The Test row: its buttons wrap inside the card on a narrow screen, lining up
+   under the first button rather than under "2. Test" */
 .test-row {
+    display: flex;
+    align-items: flex-start;
+}
+
+.test-row b {
+    margin-right: 8px;
+    line-height: 41px; /* a button row */
+}
+
+.test-btns {
+    flex: 1;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
 }
 
-.test-row b {
-    margin-right: 8px;
+/* Visitor flow: − / + around its name, set like a button's text */
+.test-row .flow {
+    display: flex;
+    align-items: center;
+}
+
+.test-row .flow span {
+    padding: 0 6px;
+    font-size: .9rem;
+}
+
+button:disabled {
+    opacity: .4;
+    cursor: default;
 }
 
 /* The Play heading with the Music button at its right end */
@@ -193,6 +228,12 @@ select.menu {
     -webkit-appearance: none;
     line-height: inherit;
     vertical-align: baseline;
+}
+
+/* A menu (select) is as tall as a button */
+select {
+    box-sizing: border-box;
+    height: calc(.9rem * 1.6 + 14px);
 }
 
 button:hover, select.menu:hover {

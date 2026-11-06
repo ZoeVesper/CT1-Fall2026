@@ -3,10 +3,22 @@ const CORES = ['actor', 'installation', 'stationary'];
 const CONC = ['none', 'door', 'screen', 'shutter', 'display'];
 const VIS = ['none', 'darkness', 'flashing'];
 const SND = ['none', 'sudden'];
+// Outline of whatever is selected (a location or a slot)
+const SEL_COL = [255, 200, 0];
 const BASE = { actor: 44, installation: 38, stationary: 22 };
 // Fear at which a visitor panics and runs for an exit.
 const PANIC = 275;
 const BRAVE = [.1, .7]; // range of visitor bravery (cuts the fear of each scare by up to 60%)
+const SPREAD = .15;      // share of a visitor's new fear passed to visitors within SPREAD_D
+const SPREAD_D = 60;
+// After a scare goes off it can't be set off again for COOL frames (1.5 s), so its
+// animation and sound always play out. Visitors within NEAR_D units of it (along the
+// route) who didn't set it off still get a fright: ×NEAR[1] right next to it, down to
+// ×NEAR[0] at NEAR_D. A visual cue still works on every visitor; only its green pulse
+// waits COOL frames before it can show again.
+const COOL = 90;
+const NEAR_D = 100;
+const NEAR = [.3, .8];
 
 class Encounter {
     constructor() {
@@ -19,6 +31,7 @@ class Encounter {
             open: 0,
             reveal: 0,
             ring: 0,
+            cool: 0,
             total: 0,
             hits: 0,
             logged: false,
@@ -71,6 +84,7 @@ class Encounter {
             this.reveal--;
         } else this.open = lerp(this.open, 0, .1);
         if (this.ring > 0) this.ring--;
+        if (this.cool > 0 && !paused) this.cool--;
     }
 
     // Visual block on a doorway: a square icon like the other slots, with the
@@ -81,9 +95,9 @@ class Encounter {
         translate(x, y);
         if (s) {
             noFill();
-            stroke(255, 200, 0);
+            stroke(...SEL_COL);
             strokeWeight(2);
-            rect(-31, -31, 62, 62, 6);
+            rect(-34, -34, 68, 68, 7);
         }
         stroke(70);
         strokeWeight(1);
@@ -114,9 +128,9 @@ class Encounter {
         translate(x, y);
         if (s) {
             noFill();
-            stroke(255, 200, 0);
+            stroke(...SEL_COL);
             strokeWeight(2);
-            rect(-31, -31, 62, 62, 6);
+            rect(-34, -34, 68, 68, 7);
         }
         stroke(70);
         strokeWeight(1);
@@ -823,17 +837,20 @@ class Visitor {
         });
     }
 
-    // Emergency exit to run to: the location the visitor is in, or the nearest one
-    // before it that has an exit, else the next one after it. The last location
-    // without an emergency exit of its own sends them on out of the house exit
-    // ('house').
+    // Exit to run to: the emergency exit of the location the visitor is in, or of
+    // the nearest one before it, else of the next one after it. In the last
+    // location, or with no emergency exit left ahead before it, they run on out of
+    // the house exit ('house').
     pickExit(R) {
         let cur = 0;
         R.locD.forEach((d, i) => { if (this.d >= d) cur = i; });
         const ex = house.exits(), last = house.segs.length - 1;
-        if (cur == last && !ex[cur]) return 'house';
+        // In the last location the house exit is right ahead: take it, even if
+        // that location has an emergency exit too (and run on to it from further back
+        // rather than to that emergency exit)
+        if (cur == last) return 'house';
         for (let i = cur; i >= 0; i--) if (ex[i]) return i;
-        for (let i = cur + 1; i <= last; i++) if (ex[i]) return i;
+        for (let i = cur + 1; i < last; i++) if (ex[i]) return i;
         return 'house';
     }
 
@@ -915,39 +932,62 @@ class Visitor {
             e.reveal = 40;
         } else if (e.kind == 'cue') {
             this.focus = 150;
-            e.ring = PULSE; // a green pulse: it caught the visitor's eye
+            if (!e.cool) {
+                e.ring = PULSE; // a green pulse: it caught the visitor's eye
+                e.cool = COOL;
+            }
             // its own small fright is stronger just after a turn or behind a curtain too
             this.add(e, (4 + (e.vis == 'flashing' ? 4 : 0)) * (o.blind ? BLIND : 1) * (o.behindBlock ? BLOCK : 1), grp, o);
         } else {
-            let m = 1 + this.ant / 100, why = '';
-            if (this.focus > 0) {
-                m *= 1.7;
-                why = ' (×1.7)';
-            }
-            if (o.blind) {
-                m *= BLIND;
-                why += ' (×' + BLIND + ')';
-            }
-            if (o.behindBlock) {
-                m *= BLOCK;
-                why += ' (×' + BLOCK + ')';
-            }
-            m /= 1 + .5 * (this.seen[e.core] || 0);
-            m *= 1 - this.numb;
-            this.seen[e.core] = (this.seen[e.core] || 0) + 1;
-            this.numb = min(.6, this.numb + .1);
+            if (e.cool) return; // still going off for someone else (they got the nearby fright)
+            e.cool = COOL;
             e.reveal = 70;
             if (e.snd == 'sudden') {
                 e.ring = PULSE; // the yellow pulse, and the sound with it
                 playSuddenSound(e);
             }
-            const d = e.power() * m * (1 - this.brave * .6);
+            const { d, why } = this.scareFear(o);
+            this.seen[e.core] = (this.seen[e.core] || 0) + 1;
+            this.numb = min(.6, this.numb + .1);
             this.add(e, d, grp, o);
+            // Visitors close by (in front or behind) see or hear it too
+            for (const v of grp) {
+                const gap = abs(v.d - o.d);
+                if (v === this || v.fled || v.out || gap > NEAR_D) continue;
+                const f = v.scareFear(o).d * lerp(NEAR[1], NEAR[0], gap / NEAR_D);
+                v.fear += f;
+                v.peak = max(v.peak, v.fear);
+                e.total += f;
+                e.hits++;
+            }
             if (!e.logged) {
                 e.logged = true;
                 note("Visitor " + this.id + " hit by " + e.core + (e.conc != 'none' ? ' behind ' + e.conc : '') + ": +" + d.toFixed(0) + " fear" + why);
             }
         }
+    }
+
+    // The fear this visitor would get from the scare in slot o, given its state
+    // (anticipation, focus on a cue, habituation, numbness, bravery) and the slot's
+    // place (blind side, behind a visual block)
+    scareFear(o) {
+        const e = o.e;
+        let m = 1 + this.ant / 100, why = '';
+        if (this.focus > 0) {
+            m *= 1.7;
+            why = ' (×1.7)';
+        }
+        if (o.blind) {
+            m *= BLIND;
+            why += ' (×' + BLIND + ')';
+        }
+        if (o.behindBlock) {
+            m *= BLOCK;
+            why += ' (×' + BLOCK + ')';
+        }
+        m /= 1 + .5 * (this.seen[e.core] || 0);
+        m *= 1 - this.numb;
+        return { d: e.power() * m * (1 - this.brave * .6), why };
     }
 
     add(e, d, grp, o) {
@@ -956,7 +996,7 @@ class Visitor {
         e.total += d;
         e.hits++;
         for (const v of grp) {
-            if (v !== this && !v.fled && abs(v.d - this.d) < 60) v.fear += d * .25;
+            if (v !== this && !v.fled && abs(v.d - this.d) < SPREAD_D) v.fear += d * SPREAD;
         }
     }
 
@@ -987,9 +1027,9 @@ class Visitor {
         // The arc now fills based on the PANIC threshold
         arc(0, 0, 22, 22, -HALF_PI, -HALF_PI + TWO_PI * progress);
 
-        // Just turned a corner: a small amber turn arrow above the head
+        // Just turned a corner: a small dark red turn arrow above the head (the ×1.5 colour)
         if (this.turnFlash > 0) {
-            stroke(255, 170, 0, this.turnFlash * 6);
+            stroke(150, 20, 30, this.turnFlash * 6);
             strokeWeight(2);
             noFill();
             drawTurnArrow(0, -20, 0.6);

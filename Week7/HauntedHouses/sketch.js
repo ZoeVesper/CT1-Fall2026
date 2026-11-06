@@ -16,10 +16,28 @@ let house = new House(),
     running = false,
     paused = false,
     spawnTimer = 0,
+    gapIdx = 0,     // index in GAPS: how far apart the visitors enter
     logs = [],
     W = 960,
     H = Math.round(960 * VIEW_H / VIEW_W), // 736
     LAYOUT_H = H; // the house fills the canvas (fear per encounter is in the table below it)
+
+// Distance between visitors as they enter (units along the route), from the
+// slowest flow to the busiest. At the walking speed (WALK units a frame) a
+// gap of g means a new visitor every g / WALK frames.
+const GAPS = [144, 120, 100, 80, 65, 50], WALK = 1.2;
+function spawnEvery() { return GAPS[gapIdx] / WALK }
+function changeFlow(step) {
+    gapIdx = constrain(gapIdx + step, 0, GAPS.length - 1);
+    showFlow();
+}
+function showFlow() {
+    const fewer = document.getElementById('btnFewer'), more = document.getElementById('btnMore');
+    fewer.disabled = gapIdx == 0;
+    more.disabled = gapIdx == GAPS.length - 1;
+    document.getElementById('flow').textContent = 'Visitor Flow Lv ' + (gapIdx + 1);
+    fewer.title = more.title = 'Visitor flow: a new visitor every ' + (spawnEvery() / 60).toFixed(1) + ' s';
+}
 
 const NAMES = { room: 'Room', corridor: 'Corridor' };
 function locName(i) { return NAMES[house.segs[i].kind] + ' ' + (i + 1) }
@@ -403,11 +421,12 @@ function startTest() {
         slot.e.logged = false;
         slot.e.open = 0;
         slot.e.reveal = 0;
+        slot.e.cool = 0;
     });
     house.segs.forEach(g => g.turnLogged = false);
 
     // the first visitor enters straight away; the rest follow one by one (see draw)
-    group.push(new Visitor(-20, nextId++, 0, 1.2));
+    group.push(new Visitor(-20, nextId++, 0, WALK));
     spawnTimer = 0;
     running = true;
     note("Test started. Visitors are entering…");
@@ -581,7 +600,7 @@ function edit() {
         return show(`<b>Blocked</b> by the ${q.blockedBy[0].place} slot next to it`);
     const where = q.place == 'wall' ? '<b>Wall Slot</b>' : '<b>Floor Slot</b>';
     const slot = house.slots().find(o => o.e === e);
-    let h = where + (slot && slot.blind ? ` <span style="color:#ffaa00">×${BLIND}</span>` : '') +
+    let h = where + (slot && slot.blind ? ` <span style="color:#b4283a">×${BLIND}</span>` : '') +
         (slot && slot.behindBlock ? ` <span style="color:#dc5050">×${BLOCK}</span>` : '') +
         `<label>Type <select onchange="setF('kind',this.value)">${opts(e.kindOptions(), e.kind)}</select></label>`;
     if (e.kind == 'scare' || e.kind == 'cue') {
@@ -637,6 +656,7 @@ function setF(k, v) {
 async function setup() {
     createCanvas(W, H).parent('cv');
     textFont('monospace');
+    showFlow();
     // The artist's own pictures for the map (see MAP_PICTURES in class.js).
     // One that can't be loaded is skipped: that element keeps its drawn icon.
     for (const [name, file] of Object.entries(MAP_PICTURES)) {
@@ -664,7 +684,7 @@ function fitsCanvas(segs) {
 function cornerArrow(x, y, hin, hout) {
     push();
     translate(x, y);
-    stroke(255, 170, 0);
+    stroke(150, 20, 30); // the dark red of the ×1.5 after a turn
     strokeWeight(2);
     noFill();
     const a = [-hin[0] * 12, -hin[1] * 12], c = [hout[0] * 12, hout[1] * 12];
@@ -716,7 +736,7 @@ function draw() {
         strokeWeight(2);
         rect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
         // (The blind side after a turning corridor isn't shaded: its slots carry the
-        // amber outline and ×1.5 instead.)
+        // dark red outline and ×1.5 instead.)
         // Doorways: gaps in the wall at the entrance and the exit
         const ex = g.routeLocal()[g.routeLocal().length - 1];
         doorGap(0, -30, 0, 30);
@@ -744,21 +764,6 @@ function draw() {
         line(...q.opening);
         drawingContext.setLineDash([]);
     });
-
-    // Selected location: yellow outline, drawn after every floor so a location
-    // built later (and drawn later) can't cover it
-    const si = house.segs.indexOf(selLoc);
-    if (si >= 0) {
-        const p = L.locs[si], b = selLoc.body;
-        push();
-        translate(p.x, p.y);
-        rotate(p.h * HALF_PI);
-        noFill();
-        stroke(255, 200, 0);
-        strokeWeight(3);
-        rect(b[0] - 3, b[1] - 3, b[2] - b[0] + 6, b[3] - b[1] + 6, 4);
-        pop();
-    }
 
     if (!house.segs.length) {
         fill(120);
@@ -819,25 +824,26 @@ function draw() {
             rect(q.x - 20, q.y - 20, 40, 40, 4);
             line(q.x - 10, q.y - 10, q.x + 10, q.y + 10);
             line(q.x + 10, q.y - 10, q.x - 10, q.y + 10);
-            if (q.e === sel) { stroke(255, 200, 0); rect(q.x - 24, q.y - 24, 48, 48, 6); }
+            if (q.e === sel) { stroke(...SEL_COL); rect(q.x - 24, q.y - 24, 48, 48, 6); }
         } else {
             // Bonus outlines hug the icon (at most 5 units out), so they never
             // reach a neighbouring slot's icon, even one only a few units away.
             // Labels go on the slot's outer side (labelSide / labelSpots).
             const side = labelSide(q), spot = labelSpots(side);
-            // Blind side: a scare just after a turn, amber outline + multiplier
+            // Blind side: a scare just after a turn, dark red outline + multiplier
+            // (the same family as the visual block's red, but deeper)
             if (q.blind) {
                 noFill();
-                stroke(255, 170, 0);
+                stroke(150, 20, 30);
                 strokeWeight(2);
                 rect(q.x - 30, q.y - 30, 60, 60, 6);
                 noStroke();
-                fill(255, 170, 0);
+                fill(170, 35, 45);
                 textSize(10);
                 textAlign(spot.blind[2], spot.blind[3]);
                 text('×' + BLIND, q.x + spot.blind[0], q.y + spot.blind[1]);
             }
-            // Behind a visual block: curtain-red outline (inside the amber one)
+            // Behind a visual block: curtain-red outline (inside the dark red one)
             if (q.behindBlock) {
                 noFill();
                 stroke(200, 60, 60);
@@ -853,12 +859,27 @@ function draw() {
         }
     });
 
+    // Selected location: yellow outline (SEL_COL), drawn after every floor and slot so
+    // nothing built next to it (a later location, a neighbour's slot) covers it
+    const si = house.segs.indexOf(selLoc);
+    if (si >= 0) {
+        const p = L.locs[si], b = selLoc.body;
+        push();
+        translate(p.x, p.y);
+        rotate(p.h * HALF_PI);
+        noFill();
+        stroke(...SEL_COL);
+        strokeWeight(3);
+        rect(b[0] - 3, b[1] - 3, b[2] - b[0] + 6, b[3] - b[1] + 6, 4);
+        pop();
+    }
+
     if (running && !paused) {
         spawnTimer++;
-        // A new visitor every 2 seconds (120 frames), at the same pace from start
-        // to finish, until the test is paused or ended
-        if (spawnTimer >= 120) {
-            group.push(new Visitor(-20, nextId++, 0, 1.2));
+        // A new visitor every GAPS[gapIdx] units of walking (the Visitor flow
+        // buttons), until the test is paused or ended
+        if (spawnTimer >= spawnEvery()) {
+            group.push(new Visitor(-20, nextId++, 0, WALK));
             spawnTimer = 0;
         }
         group.forEach(v => v.update(list, group));
@@ -883,10 +904,10 @@ function draw() {
         if (q.e.kind == 'block') q.e.drawBlock(q.x, q.y, q.n, q.e === sel);
         else if (q.e === sel) {
             noFill();
-            stroke(255, 200, 0);
+            stroke(...SEL_COL);
             strokeWeight(2);
             // same rounded square as a selected visual block on a doorway
-            rect(q.x - 31, q.y - 31, 62, 62, 6);
+            rect(q.x - 34, q.y - 34, 68, 68, 7);
         }
     });
     pop();

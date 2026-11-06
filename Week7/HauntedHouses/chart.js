@@ -37,8 +37,8 @@ const ICONS = {
     cue: FRAME(`<rect x="5" y="3" width="46" height="50" rx="2" fill="#96c8d2" fill-opacity=".16" stroke="#96aaaf" stroke-width="1.5"/>` +
         `<rect x="5" y="49" width="46" height="4" fill="#5a463c"/>` +
         `<ellipse cx="28" cy="26" rx="13" ry="8" fill="none" stroke="#50c850" stroke-width="2"/><circle cx="28" cy="26" r="4" fill="#50c850"/>`, '#2a2222'),
-    turn: FRAME(`<rect x="3" y="3" width="50" height="50" rx="5" fill="#ffaa00" fill-opacity=".1" stroke="#ffaa00" stroke-width="1.5"/>` +
-        `<g fill="none" stroke="#ffaa00" stroke-width="3" stroke-linecap="round"><path d="M12 40H30V14"/><path d="M24 21L30 14L36 21"/></g>`),
+    turn: FRAME(`<rect x="3" y="3" width="50" height="50" rx="5" fill="#96141e" fill-opacity=".1" stroke="#96141e" stroke-width="1.5"/>` +
+        `<g fill="none" stroke="#96141e" stroke-width="3" stroke-linecap="round"><path d="M12 40H30V14"/><path d="M24 21L30 14L36 21"/></g>`),
 };
 
 // The artist's own pictures (Icon/ folder) replace the drawn icons above
@@ -61,7 +61,7 @@ const CHART = [
     {
         cat: 'Location', note: 'Safety rule: every 3 locations in a row need an emergency exit (green); the last location already leads to the house exit.', items: [
             { id: 'room', name: 'Room', tip: 'Default lighting and sound. 4 floor slots, plus 2 slots behind each wall, for adding encounters. Optional emergency exit (green).' },
-            { id: 'corridor', name: 'Corridor', tip: 'Default lighting and sound. Runs straight, or turns 90° left or right when Direction Change is chosen as the optional strategy. 1 slot behind each side wall. Optional emergency exit (green).' },
+            { id: 'corridor', name: 'Corridor', tip: 'Default lighting and sound. Runs straight, or turns 90° left or right when Direction Change is chosen as the optional strategy. 2 wall slots: behind the two side walls when straight, or behind the front and outer walls when turning. Optional emergency exit (green).' },
         ]
     },
     {
@@ -94,7 +94,7 @@ const CHART = [
         cat: 'Optional Strategy', items: [
             { id: 'block', name: 'Visual Block', tip: 'Raises anticipation +10, which makes every later scare stronger. Scares and cues in the first 100 units behind it ×1.2 (red outline).' },
             { id: 'cue', name: 'Visual Cue', tip: 'Built from three other categories: a core + concealment (a Display, or none on the floor) + visual add-on (optional Flashing Light). Adds +4 fear (+8 if flashing), and the visitor stares at it (a green pulse): scares in the next 150 frames ×1.7 (misdirection).' },
-            { id: 'turn', name: 'Direction Change', tip: 'Made by a room’s side exit or a turning corridor. Raises anticipation +6. After a turning corridor, scares and cues in the first 100 units of the next location ×1.5 (amber outline).' },
+            { id: 'turn', name: 'Direction Change', tip: 'Made by a room’s side exit or a turning corridor. Raises anticipation +6. After a turning corridor, scares and cues in the first 100 units of the next location ×1.5 (dark red outline).' },
         ]
     },
 ];
