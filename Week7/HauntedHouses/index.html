@@ -55,7 +55,7 @@
         </div>
 
         <h2 id="elements">Element Chart</h2>
-        <p class="mut">There are six categories of elements in a haunted house: location, core, concealment, visual add-on, audio add-on, and optional strategy. Together they make up three parts:<br>
+        <p>There are six categories of elements in a haunted house: location, core, concealment, visual add-on, audio add-on, and optional strategy. Together they make up three parts:<br>
             <b>Locations</b> — rooms and corridors, chained into a route.<br>
             <b>Encounters</b> — a core, a concealment, and optional visual and audio add-ons, combined to create fear.<br>
             <b>Optional strategies</b> — ways to amplify fear. A strategy can be a kind of encounter (a Visual Block, or a Visual Cue built from a core, a concealment, and a visual add-on) or a change to a location (a Direction Change).<br>
@@ -66,9 +66,9 @@
         <p>A haunted house looks like a pile of spooky props, but it behaves like a system: <em>locations</em> are chained into a route, <em>encounters</em> are placed along it, and their sequence steers a group’s movement, attention and emotion. I wanted to model the designer’s side of this: you assemble a house, send a group of visitors through it, and watch how the pieces affect each other and the visitors.</p>
 
         <h2>Process</h2>
-        <ol>
-            <li><b>Element catalogue.</b> From my category chart I defined every legal element: Room (4 floor slots + 2 slots behind each wall), Corridor (one slot behind each side wall) and Corner (a corridor turn, 2 wall slots); cores Actor, Installation, Stationary; concealments Door, Screen, Shutter, Display; add-ons Darkness, Flashing Light, Sudden Sound; strategies Visual Block, Visual Cue, Direction Change.</li>
-            <li><b>Rules as constraints.</b> A <i style="color: inherit;">Visual Cue</i> is a core + (Display or no concealment) + optional Flashing Light, so the editor only offers those options for it. Wall slots are in a hidden staff area, so they must use an opening (Door, Screen, Shutter or Display); floor slots are open or behind a free-standing Screen or Display. A floor slot and the wall slots next to it rule each other out. A <i style="color: inherit;">Direction Change</i> is not a slot: a room can exit through its left or right wall, and a corridor turns with a Corner piece. Locations may not overlap, and a new location may not cover the hidden area of a wall slot in use. Default lighting and sound are implied everywhere.</li>
+        <ol style="padding-left: 1.4em;">
+            <li><b>Element catalogue.</b> From my <a href="#elements" style="color:#e55">Element Chart</a> I defined every legal element: Room (4 floor slots + 2 slots behind each wall) and Corridor (straight or turning; one slot behind each side wall); cores Actor, Installation, Stationary; concealments Door, Screen, Shutter, Display; add-ons Darkness, Flashing Light, Sudden Sound; strategies Visual Block, Visual Cue, Direction Change.</li>
+            <li><b>Rules as constraints.</b> A <i style="color: inherit;">Visual Cue</i> is a core + (Display or no concealment) + optional Flashing Light, so the editor only offers those options for it. Wall slots are in a hidden staff area, so they must use an opening (Door, Screen, Shutter or Display); floor slots are open or behind a free-standing Screen or Display. A floor slot and the wall slots next to it rule each other out. A <i style="color: inherit;">Direction Change</i> is not a slot: a room can exit through its left or right wall, or a corridor can turn left or right. Locations may not overlap, and a new location may not cover the hidden area of a wall slot in use. Default lighting and sound are implied everywhere.</li>
             <li><b>UML.</b> The structure became classes: a House is composed of Locations (Room, Corridor and Corner extend an abstract Location), and each Location of Encounter slots. The element categories (core, concealment, visual add-on, sound) are attributes of an Encounter, each limited to a fixed set of values; the strategies are kinds of Encounter (visual block, visual cue) or the shape of a Location (direction change). Visitors are separate agents that react to encounters.</li>
             <li><b>Behaviour.</b> I gave encounters no fixed “scare value”. They only emit stimuli; the visitor’s state decides the result, which is where emergence comes from.</li>
         </ol>
@@ -153,7 +153,7 @@
                 </g>
             </svg>
         </div>
-        <p class="mut">Composition (filled diamond): a House is made of 1–8 Locations and their doorways, and each Location owns its Encounter slots. Inheritance (triangle): Room, Corridor and Corner extend the abstract Location. An Encounter’s element categories are attributes limited to fixed sets of values (enumerations, dashed arrows). Arrows: a Visitor reacts to Encounters, and its fear spreads to nearby Visitors. The note shows how the three strategies are built from these classes.</p>
+        <p>Composition (filled diamond): a House is made of 1–8 Locations and their doorways, and each Location owns its Encounter slots. Inheritance (triangle): Room, Corridor and Corner extend the abstract Location. An Encounter’s element categories are attributes limited to fixed sets of values (enumerations, dashed arrows). Arrows: a Visitor reacts to Encounters, and its fear spreads to nearby Visitors. The note shows how the three strategies are built from these classes.</p>
 
         <h2>Emergent Properties</h2>
         <p>No encounter has a built-in “scariness”. The same encounter can be a great scare or a wasted prop depending on its neighbours:</p>
