@@ -430,21 +430,60 @@ function endTest() {
     summary();
 }
 
-// Background music (the <audio id="bgm"> in index.html), on or off. It keeps
-// playing (looping) whatever happens in the simulator.
-function toggleMusic() {
-    const music = document.getElementById('bgm'),
-        btn = document.getElementById('btnMusic');
-    if (music.paused) {
-        music.volume = .4;
-        music.play()
-            .then(() => btn.textContent = '♪ Music: On')
-            .catch(() => note("Can't play the music: the file Music/Music1.mp3 is missing."));
-    } else {
-        music.pause();
-        btn.textContent = '♪ Music: Off';
-    }
+// Background music, on or off; it keeps looping whatever happens in the
+// simulator. It plays through the browser's Web Audio API rather than an
+// <audio loop> element: that one jumps back to the start with a short gap,
+// while a looping AudioBufferSourceNode joins the end to the start exactly.
+const MUSIC_FILE = 'Music/Music1.mp3';
+let musicCtx = null; // the AudioContext, made on the first click
+
+async function toggleMusic() {
+    const btn = document.getElementById('btnMusic');
     btn.blur(); // so Space (pause the test) doesn't press this button
+    try {
+        if (!musicCtx) {
+            // made inside the click, so the browser allows it to make sound
+            musicCtx = new AudioContext();
+            btn.textContent = '♪ Music: …';
+            await startMusic(musicCtx);
+        } else if (musicCtx.state == 'running') {
+            await musicCtx.suspend(); // pause; it carries on from here later
+        } else {
+            await musicCtx.resume();
+        }
+        btn.textContent = musicCtx.state == 'running' ? '♪ Music: On' : '♪ Music: Off';
+    } catch (err) {
+        musicCtx = null;
+        btn.textContent = '♪ Music: Off';
+        note("Can't play the music: the file " + MUSIC_FILE + " is missing.");
+    }
+}
+
+// Load the file, then loop it with no gap at the join
+async function startMusic(ctx) {
+    const res = await fetch(MUSIC_FILE);
+    if (!res.ok) throw new Error('missing');
+    const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
+    // An mp3 can carry a few milliseconds of silent padding at either end; loop
+    // only the part with sound in it, so the join stays seamless
+    const quiet = i => {
+        for (let c = 0; c < buffer.numberOfChannels; c++)
+            if (abs(buffer.getChannelData(c)[i]) > .001) return false;
+        return true;
+    };
+    let a = 0, b = buffer.length - 1;
+    while (a < b && quiet(a)) a++;
+    while (b > a && quiet(b)) b--;
+    const volume = ctx.createGain();
+    volume.gain.value = .4;
+    volume.connect(ctx.destination);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.loopStart = a / buffer.sampleRate;
+    src.loopEnd = (b + 1) / buffer.sampleRate;
+    src.connect(volume);
+    src.start(0, src.loopStart);
 }
 
 // "flashing" -> "Flashing"

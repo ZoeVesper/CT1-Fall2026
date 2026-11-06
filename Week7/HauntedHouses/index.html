@@ -12,11 +12,11 @@
         <p class="mut">An interactive simulator: build a haunted house and watch how space, objects, light and sound turn into fear.</p>
 
         <h2 class="play-head">Play
-            <!-- Background music (Music/Music1.mp3). Browsers only play
-                 sound after a click, so it starts from this button. -->
+            <!-- Background music (Music/Music1.mp3, played by toggleMusic in
+                 sketch.js). Browsers only play sound after a click, so it
+                 starts from this button. -->
             <button id="btnMusic" onclick="toggleMusic()" title="Turn the background music on or off">♪ Music: Off</button>
         </h2>
-        <audio id="bgm" src="Music/Music1.mp3" loop preload="auto"></audio>
 <div class="card">
     <b>1. Build</b> &nbsp;
     <button onclick="addLoc(new Room())">+ Room</button>
