@@ -410,13 +410,17 @@ function floorSlot(id, x, y, blocks) {
 
 class Location {
     constructor() {
+        this.makeSlots();
+        this.turnLogged = false;
+        this.emergency = false; // the player wants an emergency exit here (House.exits places it)
+    }
+    // An empty Encounter for each of its slots
+    makeSlots() {
         this.enc = {};
         this.specs().forEach(s => {
             this.enc[s.id] = new Encounter();
             this.enc[s.id].place = s.place;
         });
-        this.turnLogged = false;
-        this.emergency = false; // the player wants an emergency exit here (House.exits places it)
     }
     spec(id) { return this.specs().find(s => s.id == id) }
     // -1 = exit turns left, 0 = straight on, +1 = turns right
@@ -503,37 +507,35 @@ class Room extends Location {
     }
 }
 
-// Corridor, 120 long and 72 wide, one direction only. No floor slots:
-// one slot behind each side wall.
+// Corridor: straight on, or turning 90° left or right (Direction Change).
+// No floor slots. A straight corridor is 120 long and 72 wide, with one slot
+// behind each side wall. A turning one is a 112 x 112 piece (big enough that
+// visual blocks on both of its doorways don't touch); its two closed walls
+// (front and the outer side) each hold one slot.
 class Corridor extends Location {
-    get kind() { return 'corridor' }
-    get len() { return 120 }
-    get body() { return [0, -36, this.len, 36] }
-    // The previous location's hidden areas can reach 64 into the corridor, so its
-    // wall slots sit in the second half (64..120)
-    specs() {
-        return [
-            wallSlot('L', 92, -70, [64, -100, 120, -36], [70, -36, 114, -36], []),
-            wallSlot('R', 92, 70, [64, 36, 120, 100], [70, 36, 114, 36], []),
-        ];
-    }
-}
-
-// Corner (the corridor 'turn'): a 112 x 112 piece that turns the route 90° left or right.
-// (Big enough that visual blocks on both of its doorways don't touch.)
-// Its two closed walls (front and the outer side) each hold one slot.
-class Corner extends Location {
-    constructor(side = 'left') {
+    constructor(turn = 'straight') {
         super();
-        this.side = side; // 'left' | 'right'
+        this.turn = turn; // 'straight' | 'left' | 'right'
+        this.makeSlots();  // again: super() made them before the turn was known
     }
-    get kind() { return 'corner' }
-    get body() { return [0, -56, 112, 56] }
-    get exitTurn() { return this.side == 'left' ? -1 : 1 }
-    get turnPt() { return [56, 0] }
-    routeLocal() { return [[0, 0], [56, 0], [56, this.side == 'left' ? -56 : 56]] }
+    get kind() { return 'corridor' }
+    get turning() { return this.turn != 'straight' }
+    get len() { return this.turning ? 112 : 120 }
+    get body() { return this.turning ? [0, -56, 112, 56] : [0, -36, 120, 36] }
+    get exitTurn() { return { straight: 0, left: -1, right: 1 }[this.turn] }
+    get turnPt() { return this.turning ? [56, 0] : null }
+    routeLocal() {
+        return this.turning ? [[0, 0], [56, 0], [56, this.turn == 'left' ? -56 : 56]] : [[0, 0], [120, 0]];
+    }
     specs() {
-        const s = this.side == 'left' ? 1 : -1; // the outer (closed) side
+        if (!this.turning)
+            // The previous location's hidden areas can reach 64 into the corridor,
+            // so its wall slots sit in the second half (64..120)
+            return [
+                wallSlot('L', 92, -70, [64, -100, 120, -36], [70, -36, 114, -36], []),
+                wallSlot('R', 92, 70, [64, 36, 120, 100], [70, 36, 114, 36], []),
+            ];
+        const s = this.turn == 'left' ? 1 : -1; // the outer (closed) side
         return [
             wallSlot('F', 146, 0, [112, -28, 176, 28], [112, -22, 112, 22], []),
             wallSlot('S', 56, 90 * s, s > 0 ? [28, 56, 84, 120] : [28, -120, 84, -56], [34, 56 * s, 78, 56 * s], []),
@@ -643,12 +645,12 @@ class House {
         // only a scare or cue placed there makes use of them.
         // Blind side: visitors can't see into the location after a turn until
         // they have turned into it, so the scares they reach in its first BLIND_D
-        // units catch them unprepared. Only a Corner's tight turn counts: a room
+        // units catch them unprepared. Only a turning corridor's tight turn counts: a room
         // turns in its centre, too far from the next location to hide it. A
-        // corner after a turn gets nothing either: it is itself a turn.
+        // turning corridor after a turn gets nothing either: it is itself a turn.
         r.forEach(q => q.blind = false);
         this.segs.forEach((s, i) => {
-            if (s.kind != 'corner' || i + 1 >= this.segs.length || this.segs[i + 1].kind == 'corner') return;
+            if (!s.turning || i + 1 >= this.segs.length || this.segs[i + 1].turning) return;
             const start = R.locD[i + 1];
             r.forEach(q => {
                 if (q.loc === i + 1 && !q.blockedBy.length &&
@@ -746,7 +748,7 @@ class House {
     // doorSpots() whose outside is free: no other location's floor, hidden area,
     // slot icon, way in or out, or other emergency exit. Cached per layout.
     exits() {
-        const key = this.segs.map(s => [s.kind, s.exit, s.side, s.emergency].join()).join('|');
+        const key = this.segs.map(s => [s.kind, s.exit, s.turn, s.emergency].join()).join('|');
         if (this._exits && this._exits.key == key) return this._exits.val;
         const L = this.layout(), R = this.route(L);
         const bodies = this.segs.map((s, i) => rectW(L.locs[i], s.body));
@@ -876,7 +878,7 @@ class Visitor {
         this.fear *= .9985;
         if (this.turnFlash > 0) this.turnFlash--;
 
-        // Direction change: turning in a room (side exit) or a corner.
+        // Direction change: turning in a room (side exit) or a turning corridor.
         // The next location could not be seen before the turn: scares at its start
         // are on the blind side (marked by House.slots, applied in react()).
         house.segs.forEach((s, i) => {
@@ -888,7 +890,7 @@ class Visitor {
                 s.turnLogged = true;
                 const nxt = house.segs[i + 1];
                 note("Visitor " + this.id + " turns " + (s.exitTurn < 0 ? 'left' : 'right') + " in " + NAMES[s.kind].toLowerCase() + " " + (i + 1) +
-                    (nxt && s.kind == 'corner' && nxt.kind != 'corner' ? ": the start of " + NAMES[nxt.kind].toLowerCase() + " " + (i + 2) + " is on the blind side" : ""));
+                    (nxt && s.turning && !nxt.turning ? ": the start of " + NAMES[nxt.kind].toLowerCase() + " " + (i + 2) + " is on the blind side" : ""));
             }
         });
 

@@ -2,14 +2,14 @@
 // house looks like, and that is also the limit on how big a house can be.
 // Width: 6 rooms in 2 rows of 3 (908 units with their hidden areas, slot
 // labels, the queue and the way out). Height: room (side exit) + corridor +
-// corner + corridor + room stacked up (692 units), plus the 8 px edge margin.
+// turning corridor + corridor + room stacked up (692 units), plus the 8 px edge margin.
 const VIEW_W = 924,
     VIEW_H = 708,
     EDGE = 8; // everything stays at least this many px inside the canvas edge
 
 let house = new House(),
     sel = null,     // selected slot (Encounter)
-    selLoc = null,  // selected Room/Corridor/Corner
+    selLoc = null,  // selected Room/Corridor
     group = [],     // visitors in or near the house
     finished = [],  // visitors who have left (kept for the end-of-test summary)
     nextId = 1,
@@ -21,7 +21,7 @@ let house = new House(),
     H = Math.round(960 * VIEW_H / VIEW_W), // 736
     LAYOUT_H = H; // the house fills the canvas (fear per encounter is in the table below it)
 
-const NAMES = { room: 'Room', corridor: 'Corridor', corner: 'Corridor' };
+const NAMES = { room: 'Room', corridor: 'Corridor' };
 function locName(i) { return NAMES[house.segs[i].kind] + ' ' + (i + 1) }
 
 function note(s) {
@@ -360,10 +360,8 @@ function randomLayout(announce = true) {
         const segs = [];
         let tries = 0;
         while (segs.length < 5 && tries++ < 60) {
-            const k = random(['room', 'room', 'corridor', 'corridor', 'cornerL', 'cornerR']);
-            const l = k == 'room' ? new Room(random(['straight', 'straight', 'left', 'right']))
-                : k == 'corridor' ? new Corridor()
-                    : new Corner(k == 'cornerL' ? 'left' : 'right');
+            const l = random(['room', 'corridor', 'corridor']) == 'room' ? new Room(random(['straight', 'straight', 'left', 'right']))
+                : new Corridor(random(['straight', 'straight', 'left', 'right']));
             const next = [...segs, l];
             if (!house.collides(next) && !house.blocksWay(next) && fitsCanvas(next)) segs.push(l);
         }
@@ -557,8 +555,8 @@ function edit() {
         let h = `<b>${locName(i)}</b>`;
         if (g.kind == 'room')
             h += `<label>Exit <select onchange="setExit(this.value)">${opts(['straight', 'left', 'right'], g.exit)}</select></label>`;
-        else if (g.kind == 'corner')
-            h += `<label>Turns <select onchange="setSide(this.value)">${opts(['left', 'right'], g.side)}</select></label>`;
+        else if (g.turning)
+            h += `<label>Turns <select onchange="setTurn(this.value)">${opts(['left', 'right'], g.turn)}</select></label>`;
         // Emergency exit option (placed automatically where its wall is clear)
         const noSpot = g.emergency && !house.exits()[i];
         h += `<label><input type="checkbox" onchange="setEmergency(this.checked)" ${g.emergency ? 'checked' : ''}> Emergency Exit</label>` +
@@ -596,7 +594,7 @@ function edit() {
     show(h);
 }
 
-// Change a setting of the selected location (a room's exit wall, a corner's side).
+// Change a setting of the selected location (a room's exit wall, a turning corridor's side).
 // The rest of the house moves with it, so undo the change if it no longer fits.
 function changeLoc(key, v) {
     const g = selLoc, old = g[key];
@@ -628,7 +626,7 @@ function changeLoc(key, v) {
     edit();
 }
 function setExit(v) { changeLoc('exit', v) }
-function setSide(v) { changeLoc('side', v) }
+function setTurn(v) { changeLoc('turn', v) }
 
 function setF(k, v) {
     sel[k] = v;
@@ -717,7 +715,7 @@ function draw() {
         stroke(80);
         strokeWeight(2);
         rect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
-        // (The blind side after a corner isn't shaded: its slots carry the
+        // (The blind side after a turning corridor isn't shaded: its slots carry the
         // amber outline and ×1.5 instead.)
         // Doorways: gaps in the wall at the entrance and the exit
         const ex = g.routeLocal()[g.routeLocal().length - 1];
@@ -729,7 +727,7 @@ function draw() {
             const [mx, my] = EX[i].door;
             stroke(0, 200, 0);
             strokeWeight(5);
-            // along the wall it sits in: an end wall (corner front) or a side wall
+            // along the wall it sits in: an end wall (a turning corridor's front) or a side wall
             if (mx == b[0] || mx == b[2]) line(mx, my - 14, mx, my + 14);
             else line(mx - 14, my, mx + 14, my);
         }
