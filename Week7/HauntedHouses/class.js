@@ -194,22 +194,16 @@ class Encounter {
                 ellipse(-20, -18, 3, 3);
             }
             // The pulse when it goes off: green for a cue catching the eye,
-            // yellow for a sudden sound
+            // yellow for a sudden sound, red for a scare with nothing to open
+            // (in the open or in a display case, so nothing else shows it struck)
             if (this.ring > 0) {
                 noFill();
                 const fade = this.ring / PULSE * 240; // fades out as it grows
                 if (this.kind == 'cue') stroke(90, 255, 90, fade);
-                else stroke(255, 220, 60, fade);
+                else if (this.snd == 'sudden') stroke(255, 220, 60, fade);
+                else stroke(255, 60, 60, fade);
                 strokeWeight(2);
                 ellipse(0, 0, (PULSE - this.ring) * 4, (PULSE - this.ring) * 4);
-            }
-            // A scare in the open or in a display case has nothing to open, so it
-            // flashes red when it strikes
-            if (this.kind == 'scare' && this.reveal > 0 && (this.conc == 'none' || this.conc == 'display')) {
-                noFill();
-                stroke(255, 60, 60, this.reveal * 3.5);
-                strokeWeight(3);
-                rect(-27, -27, 54, 54, 5);
             }
         }
         noStroke();
@@ -961,6 +955,8 @@ class Visitor {
             if (e.snd == 'sudden') {
                 e.ring = PULSE; // the yellow pulse, and the sound with it
                 playSuddenSound(e);
+            } else if (e.conc == 'none' || e.conc == 'display') {
+                e.ring = PULSE; // a red pulse: nothing opens, so this shows it struck
             }
             const { d: full, why } = this.scareFear(o);
             const d = full * (this.felt.has(e) ? AGAIN : 1);
