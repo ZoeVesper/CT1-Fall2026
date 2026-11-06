@@ -94,23 +94,23 @@
                 </defs>
                 <!-- class boxes -->
                 <g stroke="#c99" fill="#171212">
-                    <rect x="20" y="40" width="250" height="170"/>
+                    <rect x="20" y="40" width="250" height="186"/>
                     <rect x="320" y="40" width="280" height="140"/>
                     <rect x="660" y="40" width="360" height="236"/>
                     <rect x="175" y="300" width="200" height="90"/><rect x="420" y="300" width="275" height="90"/>
                     <rect x="740" y="300" width="280" height="204"/>
                     <rect x="20" y="420" width="128" height="118"/><rect x="160" y="420" width="128" height="118"/><rect x="300" y="420" width="128" height="118"/><rect x="440" y="420" width="128" height="118"/><rect x="580" y="420" width="128" height="118"/>
-                    <path d="M20 228H158L170 240V388H20Z"/>
+                    <path d="M20 236H158L170 248V396H20Z"/>
                 </g>
                 <!-- compartment lines -->
                 <g stroke="#5a3a3a">
-                    <path d="M20 64H270M20 120H270"/>
+                    <path d="M20 64H270M20 136H270"/>
                     <path d="M320 64H600M320 104H600"/>
                     <path d="M660 64H1020M660 200H1020"/>
                     <path d="M175 324H375M175 364H375M420 324H695M420 364H695"/>
                     <path d="M740 324H1020M740 412H1020"/>
                     <path d="M20 455H148M160 455H288M300 455H428M440 455H568M580 455H708"/>
-                    <path d="M158 228V240H170" fill="none" stroke="#c99"/>
+                    <path d="M158 236V248H170" fill="none" stroke="#c99"/>
                 </g>
                 <!-- relationships -->
                 <g stroke="#c99" fill="none">
@@ -139,8 +139,8 @@
                 <g>
                     <!-- House -->
                     <text x="28" y="56" font-weight="bold">House</text>
-                    <text x="28" y="80">- segs: Location[1..8]</text><text x="28" y="96">- doors: Encounter[n+1]</text><text x="28" y="112">- exitCounts: number[]</text>
-                    <text x="28" y="136">+ layout() / route()</text><text x="28" y="152">+ slots(): route order, blind</text><text x="28" y="168">+ collides() / blocksWay()</text><text x="28" y="184">+ exits() / exitGaps()</text><text x="28" y="200">+ bounds(): fits the canvas</text>
+                    <text x="28" y="80">- segs: Location[1..8]</text><text x="28" y="96">- doors: Encounter[n+1]</text><text x="28" y="112">- exitCounts: number[]</text><text x="28" y="128">- startH: entrance side</text>
+                    <text x="28" y="152">+ layout() / route()</text><text x="28" y="168">+ slots(): route order, blind</text><text x="28" y="184">+ collides() / blocksWay()</text><text x="28" y="200">+ exits() / exitGaps()</text><text x="28" y="216">+ bounds(): fits the canvas</text>
                     <!-- Location -->
                     <text x="328" y="56" font-weight="bold">Location</text>
                     <text x="328" y="80">- enc: {slotId: Encounter}</text><text x="328" y="96">- emergency: bool</text>
@@ -164,7 +164,7 @@
                     <text x="448" y="449" font-weight="bold">Visual</text><text x="448" y="470">none</text><text x="448" y="485">darkness</text><text x="448" y="500">flashing</text>
                     <text x="588" y="449" font-weight="bold">Sound</text><text x="588" y="470">none</text><text x="588" y="485">sudden</text>
                     <!-- Note: strategies -->
-                    <g font-size="10"><text x="28" y="246" font-weight="bold">Strategies (not</text><text x="28" y="260" font-weight="bold">separate classes):</text><text x="28" y="278">Visual Block =</text><text x="28" y="292"> Encounter 'block'</text><text x="28" y="306"> in a doorway slot</text><text x="28" y="322">Visual Cue =</text><text x="28" y="336"> Encounter 'cue'</text><text x="28" y="352">Direction Change =</text><text x="28" y="366"> Room side exit or</text><text x="28" y="380"> a turning Corridor</text></g>
+                    <g font-size="10"><text x="28" y="254" font-weight="bold">Strategies (not</text><text x="28" y="268" font-weight="bold">separate classes):</text><text x="28" y="286">Visual Block =</text><text x="28" y="300"> Encounter 'block'</text><text x="28" y="314"> in a doorway slot</text><text x="28" y="330">Visual Cue =</text><text x="28" y="344"> Encounter 'cue'</text><text x="28" y="360">Direction Change =</text><text x="28" y="374"> Room side exit or</text><text x="28" y="388"> a turning Corridor</text></g>
                 </g>
             </svg>
         </div>

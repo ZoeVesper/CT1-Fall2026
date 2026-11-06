@@ -572,6 +572,9 @@ function edit() {
     if (selLoc) {
         const i = house.segs.indexOf(selLoc), g = selLoc;
         let h = `<b>${locName(i)}</b>`;
+        // The first location sets which side of the map the house entrance is on
+        if (i == 0)
+            h += `<label>Entrance <select onchange="setEntrance(this.value)">${opts(ENTRANCES, ENTRANCES[house.startH])}</select></label>`;
         if (g.kind == 'room')
             h += `<label>Exit <select onchange="setExit(this.value)">${opts(['straight', 'left', 'right'], g.exit)}</select></label>`;
         else if (g.turning)
@@ -645,6 +648,21 @@ function changeLoc(key, v) {
     edit();
 }
 function setExit(v) { changeLoc('exit', v) }
+
+// Which side of the map visitors enter from (index = House.startH)
+const ENTRANCES = ['left', 'top', 'right', 'bottom'];
+// Turn the whole house so its entrance is on that side; undo it if the house
+// would no longer fit on the map
+function setEntrance(v) {
+    const old = house.startH;
+    house.startH = ENTRANCES.indexOf(v);
+    if (!fitsCanvas(house.segs)) {
+        note("No room for that: the house would go off the edge of the map.");
+        house.startH = old;
+    }
+    house.updateExits();
+    edit();
+}
 function setTurn(v) { changeLoc('turn', v) }
 
 function setF(k, v) {
@@ -775,7 +793,7 @@ function draw() {
         // The visitors' route (dashed)
         const R = house.route(L);
         const pts = R.pts.slice(1, -1);
-        pts.unshift([-40, 0]);
+        pts.unshift([-HEAD[house.startH][0] * 40, -HEAD[house.startH][1] * 40]);
         const dn = L.doors[L.doors.length - 1], [hx, hy] = HEAD[dn.h];
         pts.push([dn.x + hx * 40, dn.y + hy * 40]);
         drawingContext.setLineDash([6, 6]);

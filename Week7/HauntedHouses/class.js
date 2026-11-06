@@ -22,6 +22,9 @@ const NEAR = [.3, .8];
 // A visitor already frightened by a scare (set off, or a nearby fright) gets only
 // AGAIN of the fear the next time the same scare frightens them
 const AGAIN = .7;
+// A panicking visitor turns back for an emergency exit only if it is at most
+// this far behind them along the route
+const BACK_D = 60;
 
 class Encounter {
     constructor() {
@@ -566,11 +569,15 @@ class House {
         // doors[0] = house entrance, doors[i + 1] = exit of segs[i] (= entrance of segs[i + 1])
         this.doors = [];
         this.exitCounts = [];
+        // Heading visitors walk in through the entrance (see HEAD): 0 = the
+        // entrance is on the left and they walk right, 1 = from the top, 2 = from
+        // the right, 3 = from the bottom. Set on the first location's panel.
+        this.startH = 0;
     }
 
     // World placement of every location: each one starts at the previous one's exit
     layout(segs = this.segs) {
-        let x = 0, y = 0, h = 0;
+        let x = 0, y = 0, h = this.startH;
         const locs = [], doors = [{ x, y, h }];
         segs.forEach(s => {
             const g = { x, y, h };
@@ -701,7 +708,8 @@ class House {
         });
         // doorways: a visual block's icon and the #n under it
         L.doors.forEach(d => add({ x0: d.x - 26, y0: d.y - 26, x1: d.x + 26, y1: d.y + 44 }));
-        add({ x0: -50, y0: -40, x1: 0, y1: 40 }); // queue before the entrance
+        const [sx, sy] = HEAD[this.startH]; // queue before the entrance
+        add({ x0: -sx * 50 - 40, y0: -sy * 50 - 40, x1: -sx * 50 + 40, y1: -sy * 50 + 40 });
         const dn = L.doors[L.doors.length - 1], [hx, hy] = HEAD[dn.h];
         add({ x0: dn.x + hx * 50 - 40, y0: dn.y + hy * 50 - 40, x1: dn.x + hx * 50 + 40, y1: dn.y + hy * 50 + 40 });
         return b;
@@ -709,7 +717,8 @@ class House {
 
     // ---- Route: the polyline visitors walk along ----
     route(L = this.layout()) {
-        const pts = [[-ROUTE_PAD, 0]], locD = [], turnD = [];
+        const [sx, sy] = HEAD[this.startH];
+        const pts = [[-sx * ROUTE_PAD, -sy * ROUTE_PAD]], locD = [], turnD = [];
         const len = [0];
         const push = p => {
             const q = pts[pts.length - 1];
@@ -765,7 +774,7 @@ class House {
     // doorSpots() whose outside is free: no other location's floor, hidden area,
     // slot icon, way in or out, or other emergency exit. Cached per layout.
     exits() {
-        const key = this.segs.map(s => [s.kind, s.exit, s.turn, s.emergency].join()).join('|');
+        const key = this.startH + ':' + this.segs.map(s => [s.kind, s.exit, s.turn, s.emergency].join()).join('|');
         if (this._exits && this._exits.key == key) return this._exits.val;
         const L = this.layout(), R = this.route(L);
         const bodies = this.segs.map((s, i) => rectW(L.locs[i], s.body));
@@ -841,21 +850,24 @@ class Visitor {
         });
     }
 
-    // Exit to run to: the emergency exit of the location the visitor is in, or of
-    // the nearest one before it, else of the next one after it. In the last
-    // location, or with no emergency exit left ahead before it, they run on out of
-    // the house exit ('house').
+    // Exit to run to. Panicking visitors keep going the way they were walking
+    // rather than turning back: they take the nearest exit ahead of them on the
+    // route (an emergency exit, or the house exit), unless an emergency exit is
+    // only a few steps behind them (within BACK_D along the route). In the last
+    // location they always take the house exit, even if it has an emergency exit.
     pickExit(R) {
         let cur = 0;
         R.locD.forEach((d, i) => { if (this.d >= d) cur = i; });
-        const ex = house.exits(), last = house.segs.length - 1;
-        // In the last location the house exit is right ahead: take it, even if
-        // that location has an emergency exit too (and run on to it from further back
-        // rather than to that emergency exit)
+        const last = house.segs.length - 1;
         if (cur == last) return 'house';
-        for (let i = cur; i >= 0; i--) if (ex[i]) return i;
-        for (let i = cur + 1; i < last; i++) if (ex[i]) return i;
-        return 'house';
+        let best = 'house', bestGap = max(0, R.endD - 40 - this.d); // the house exit door
+        house.exits().forEach((f, i) => {
+            if (!f || i == last) return;
+            const gap = f.d - this.d; // > 0 ahead, < 0 behind
+            if (gap < -BACK_D) return;
+            if (abs(gap) < bestGap) { best = i; bestGap = abs(gap); }
+        });
+        return best;
     }
 
     update(list, grp) {
