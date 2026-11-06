@@ -393,6 +393,7 @@ function startTest() {
         return;
     }
     stopRun();
+    loadSuddenSound(); // ready (and allowed to play) by the time a scare goes off
     house.updateExits(); // resets exit counts
     logs = [];
     document.getElementById('log').innerHTML = '';
@@ -484,6 +485,48 @@ async function startMusic(ctx) {
     src.loopEnd = (b + 1) / buffer.sampleRate;
     src.connect(volume);
     src.start(0, src.loopStart);
+}
+
+// Sudden Sound: when a scare with a sudden sound goes off, Music/Sudden.mp3
+// plays with its yellow pulse. It lasts as long as the pulse (PULSE frames) and
+// fades out with it. Its own audio context, so turning the music off (which
+// pauses the music's context) doesn't silence it.
+const SUDDEN_FILE = 'Music/Sudden.mp3';
+let sfxCtx = null, sfxBuffer = null, sfxFrom = 0;
+
+// Called from Start Test: a click, so the browser lets the page make sound
+function loadSuddenSound() {
+    if (sfxCtx) return sfxCtx.resume();
+    sfxCtx = new AudioContext();
+    fetch(SUDDEN_FILE)
+        .then(res => res.arrayBuffer())
+        .then(data => sfxCtx.decodeAudioData(data))
+        .then(buffer => {
+            // start where the sound begins, skipping the quiet lead-in, so it
+            // starts at the same moment as the pulse
+            const ch = buffer.getChannelData(0);
+            let i = 0;
+            while (i < ch.length - 1 && abs(ch[i]) < .05) i++;
+            sfxFrom = i / buffer.sampleRate;
+            sfxBuffer = buffer;
+        })
+        .catch(() => note("Can't play the sudden sound: the file " + SUDDEN_FILE + " is missing."));
+}
+
+function playSuddenSound(e) {
+    if (!sfxBuffer) return;
+    if (e.sfx) e.sfx.stop(); // set off again: start over, like its pulse
+    const t = sfxCtx.currentTime, len = PULSE / 60; // the pulse's length in seconds at 60 fps
+    const volume = sfxCtx.createGain();
+    volume.gain.setValueAtTime(.7, t);
+    volume.gain.linearRampToValueAtTime(0, t + len); // fades out like the pulse
+    volume.connect(sfxCtx.destination);
+    const src = sfxCtx.createBufferSource();
+    src.buffer = sfxBuffer;
+    src.connect(volume);
+    src.start(t, sfxFrom, len);
+    src.onended = () => { if (e.sfx === src) e.sfx = null; };
+    e.sfx = src;
 }
 
 // "flashing" -> "Flashing"

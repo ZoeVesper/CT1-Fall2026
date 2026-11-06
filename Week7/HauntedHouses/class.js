@@ -177,10 +177,11 @@ class Encounter {
             // yellow for a sudden sound
             if (this.ring > 0) {
                 noFill();
-                if (this.kind == 'cue') stroke(90, 255, 90, this.ring * 8);
-                else stroke(255, 220, 60, this.ring * 8);
+                const fade = this.ring / PULSE * 240; // fades out as it grows
+                if (this.kind == 'cue') stroke(90, 255, 90, fade);
+                else stroke(255, 220, 60, fade);
                 strokeWeight(2);
-                ellipse(0, 0, (30 - this.ring) * 4, (30 - this.ring) * 4);
+                ellipse(0, 0, (PULSE - this.ring) * 4, (PULSE - this.ring) * 4);
             }
             // A scare in the open or in a display case has nothing to open, so it
             // flashes red when it strikes
@@ -366,6 +367,7 @@ const BLIND = 1.5;      // multiplier for scares just after a direction change (
 const BLIND_D = 100;    // ...in this first stretch of the location after the turn
 const BLOCK = 1.2;      // multiplier for scares in that first stretch behind a visual block
 const ROUTE_PAD = 1000; // the route starts this far before the entrance (visitors queue there)
+const PULSE = 30;       // frames a cue's or a sudden sound's pulse lasts (the sound fades with it)
 const MAX_LOCS = 8;
 const WAY_LEN = 3000;   // how far the ways in and out of the house are kept clear
 // Wall slots sit in the hidden staff area behind a wall, so they need an opening;
@@ -911,7 +913,7 @@ class Visitor {
             e.reveal = 40;
         } else if (e.kind == 'cue') {
             this.focus = 150;
-            e.ring = 30; // a green pulse: it caught the visitor's eye
+            e.ring = PULSE; // a green pulse: it caught the visitor's eye
             // its own small fright is stronger just after a turn or behind a curtain too
             this.add(e, (4 + (e.vis == 'flashing' ? 4 : 0)) * (o.blind ? BLIND : 1) * (o.behindBlock ? BLOCK : 1), grp, o);
         } else {
@@ -933,7 +935,10 @@ class Visitor {
             this.seen[e.core] = (this.seen[e.core] || 0) + 1;
             this.numb = min(.6, this.numb + .1);
             e.reveal = 70;
-            if (e.snd == 'sudden') e.ring = 30;
+            if (e.snd == 'sudden') {
+                e.ring = PULSE; // the yellow pulse, and the sound with it
+                playSuddenSound(e);
+            }
             const d = e.power() * m * (1 - this.brave * .6);
             this.add(e, d, grp, o);
             if (!e.logged) {
