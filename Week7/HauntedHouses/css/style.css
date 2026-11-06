@@ -164,6 +164,29 @@ button, select {
     gap: 4px;
 }
 
+/* The Test row: its buttons wrap inside the card on a narrow screen */
+.test-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.test-row b {
+    margin-right: 8px;
+}
+
+/* The Play heading with the Music button at its right end */
+h2.play-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+h2.play-head button {
+    font-weight: normal;
+    letter-spacing: normal;
+}
+
 /* A menu among the buttons (Randomise): same size and look as a button */
 select.menu {
     appearance: none;
