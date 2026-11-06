@@ -918,18 +918,20 @@ function draw() {
     if (running && !paused && frameCount % 10 == 0) {
         const f = group.length > 0 ? group.reduce((a, v) => a + v.fear, 0) / group.length : 0;
         const all = [...finished, ...group];
-        document.getElementById('stats').textContent = 'Running… visitors ' + all.length + ' | average fear ' + f.toFixed(0) +
-            ' | panicked: ' + all.filter(v => v.fled).length;
+        document.getElementById('stats').textContent = 'Running… Visitors ' + all.length + ' | Average Fear ' + f.toFixed(0) +
+            ' | Panicked: ' + all.filter(v => v.fled).length;
     }
 }
 
 function updateExitStats() {
     const parts = [], ex = house.exits();
+    // (the last location's emergency exit is never used: panicked visitors there
+    // take the house exit, so it gets no count of its own)
     house.segs.forEach((s, i) => {
-        if (ex[i]) parts.push(`${locName(i)} exit: ${house.exitCounts[i]}`);
+        if (ex[i] && i < house.segs.length - 1) parts.push(`${locName(i)} Exit: ${house.exitCounts[i]}`);
     });
-    // panicked visitors who ran on out through the house exit (from the last location)
-    if (house.segs.length && !ex[house.segs.length - 1]) parts.push(`House exit: ${house.fledOut || 0}`);
+    // panicked visitors who ran on out through the house exit
+    if (house.segs.length) parts.push(`House Exit: ${house.fledOut || 0}`);
     document.getElementById('exit-counts').innerHTML = parts.join(' | ');
 }
 
@@ -976,8 +978,8 @@ function summary() {
         return;
     }
     const p = all.reduce((a, v) => a + v.peak, 0) / all.length;
-    document.getElementById('stats').textContent = 'Done. ' + all.length + ' visitors | average peak fear ' + p.toFixed(0) +
-        ' | panicked: ' + all.filter(v => v.fled).length + '/' + all.length;
+    document.getElementById('stats').textContent = 'Done. Visitors ' + all.length + ' | Average Peak Fear ' + p.toFixed(0) +
+        ' | Panicked: ' + all.filter(v => v.fled).length + '/' + all.length;
 }
 
 // Space pauses or resumes a running test (p5 calls this on every key press).
