@@ -110,7 +110,12 @@
                     <path d="M880 300V278" marker-end="url(#arr)"/>
                     <path d="M1020 440H1036V470H1022" marker-end="url(#arr)"/>
                     <path d="M700 277V404H84" stroke-dasharray="4 3"/>
-                    <path d="M84 404V418M224 404V418M364 404V418M504 404V418M644 404V418" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+                    <!-- one path per box: marker-end only draws at the end of a path -->
+                    <path d="M84 404V418" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+                    <path d="M224 404V418" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+                    <path d="M364 404V418" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+                    <path d="M504 404V418" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+                    <path d="M644 404V418" stroke-dasharray="4 3" marker-end="url(#arr)"/>
                 </g>
                 <g fill="#c99">
                     <text x="480" y="15" text-anchor="middle">doors (doorway slots)</text><text x="848" y="35">n+1</text>
