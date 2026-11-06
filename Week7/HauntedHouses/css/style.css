@@ -367,3 +367,22 @@ label {
     line-height: 1.4;
     color: var(--mut);
 }
+
+/* Footer: the same width as the page, a line above it, small grey text */
+footer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px 32px;
+}
+
+footer p {
+    margin: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--ln);
+    font-size: .85rem;
+    color: var(--mut);
+}
+
+footer a {
+    color: #e55;
+}
