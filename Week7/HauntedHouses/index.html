@@ -69,7 +69,7 @@
         <ol style="padding-left: 1.4em;">
             <li><b>Element catalogue.</b> From my <a href="#elements" style="color:#e55">Element Chart</a>, I defined every element: locations (Room with 4 floor slots + 2 slots behind each wall; Corridor, straight or turning, with 1 slot behind each side wall); cores (Actor, Installation, Stationary); concealments (Door, Shutter, Screen, Display); visual add-ons (Darkness, Flashing Light); audio add-on (Sudden Sound); optional strategies (Visual Block, Visual Cue, Direction Change).</li>
             <li><b>Rules as constraints.</b> Wall slots are in a hidden staff area, so they must use a concealment (Door, Shutter, Screen or Display); floor slots have no concealment or use a free-standing Screen or Display. A floor slot and the wall slots next to it rule each other out. A Visual Cue is a core with a Display or no concealment, plus an optional Flashing Light, so the editor only offers those options for it. A Direction Change is not a slot: a room can exit through its left or right wall, or a corridor can turn left or right. Locations may not overlap, and a new location may not cover the hidden area of a wall slot in use. Default lighting and sound are implied everywhere.</li>
-            <li><b>UML.</b> The structure became classes: a House is composed of Locations (Room, Corridor and Corner, the class for a turning corridor, extend an abstract Location), and each Location is made of Encounter slots. The element categories (core, concealment, visual add-on, audio add-on) are attributes of an Encounter, each limited to a fixed set of values; the optional strategies are kinds of Encounter (Visual Block, Visual Cue) or the shape of a Location (Direction Change). Visitors are separate agents that react to encounters.</li>
+            <li><b>UML.</b> The structure became classes: a House is composed of Locations (Room, Corridor and Corner, the class for a turning corridor, extend an abstract Location) and the doorway slots between them; each Location owns its floor and wall slots. Every slot holds an Encounter, whose element categories (core, concealment, visual add-on, audio add-on) are attributes, each limited to a fixed set of values. The optional strategies are kinds of Encounter (Visual Block, which goes in a doorway slot, and Visual Cue) or the shape of a Location (Direction Change). Visitors are separate agents that react to encounters and spread fear to each other.</li>
             <li><b>Behaviour.</b> I gave encounters no fixed “scare value”. They only emit stimuli; the visitor’s state decides the result, which is where emergence comes from.</li>
         </ol>
 
@@ -113,7 +113,7 @@
                     <path d="M84 404V418M224 404V418M364 404V418M504 404V418M644 404V418" stroke-dasharray="4 3" marker-end="url(#arr)"/>
                 </g>
                 <g fill="#c99">
-                    <text x="480" y="15" text-anchor="middle">doors (doorways)</text><text x="848" y="35">n+1</text>
+                    <text x="480" y="15" text-anchor="middle">doors (doorway slots)</text><text x="848" y="35">n+1</text>
                     <text x="316" y="75" text-anchor="end">1..8</text>
                     <text x="656" y="75" text-anchor="end">1..12</text>
                     <text x="890" y="293">reacts to</text>
@@ -149,11 +149,11 @@
                     <text x="448" y="449" font-weight="bold">Visual</text><text x="448" y="470">none</text><text x="448" y="485">darkness</text><text x="448" y="500">flashing</text>
                     <text x="588" y="449" font-weight="bold">Sound</text><text x="588" y="470">none</text><text x="588" y="485">sudden</text>
                     <!-- Note: strategies -->
-                    <g font-size="10"><text x="28" y="246" font-weight="bold">Strategies (not</text><text x="28" y="260" font-weight="bold">separate classes):</text><text x="28" y="278">Visual Block =</text><text x="28" y="292"> Encounter 'block'</text><text x="28" y="306"> on a doorway</text><text x="28" y="322">Visual Cue =</text><text x="28" y="336"> Encounter 'cue'</text><text x="28" y="352">Direction Change =</text><text x="28" y="366"> Room side exit</text><text x="28" y="380"> or a Corner</text></g>
+                    <g font-size="10"><text x="28" y="246" font-weight="bold">Strategies (not</text><text x="28" y="260" font-weight="bold">separate classes):</text><text x="28" y="278">Visual Block =</text><text x="28" y="292"> Encounter 'block'</text><text x="28" y="306"> in a doorway slot</text><text x="28" y="322">Visual Cue =</text><text x="28" y="336"> Encounter 'cue'</text><text x="28" y="352">Direction Change =</text><text x="28" y="366"> Room side exit</text><text x="28" y="380"> or a Corner</text></g>
                 </g>
             </svg>
         </div>
-        <p>Composition (filled diamond): a House is made of 1–8 Locations and their doorways, and each Location owns its Encounter slots. Inheritance (triangle): Room, Corridor and Corner extend the abstract Location. An Encounter’s element categories are attributes limited to fixed sets of values (enumerations, dashed arrows). Arrows: a Visitor reacts to Encounters, and its fear spreads to nearby Visitors. The note shows how the three strategies are built from these classes.</p>
+        <p>Composition (filled diamond): a House is made of 1–8 Locations and the doorway slots between them, and each Location owns its floor and wall slots. Inheritance (triangle): Room, Corridor and Corner extend the abstract Location. An Encounter’s element categories are attributes limited to fixed sets of values (enumerations, dashed arrows). Arrows: a Visitor reacts to Encounters, and its fear spreads to nearby Visitors. The note shows how the three strategies are built from these classes.</p>
 
         <h2>Emergent Properties</h2>
         <p>No encounter has a built-in “scariness”. The same encounter can be a great scare or a wasted prop depending on its neighbours:</p>
