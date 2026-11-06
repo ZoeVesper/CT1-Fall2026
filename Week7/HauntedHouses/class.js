@@ -19,6 +19,9 @@ const SPREAD_D = 60;
 const COOL = 90;
 const NEAR_D = 100;
 const NEAR = [.3, .8];
+// A visitor already frightened by a scare (set off, or a nearby fright) gets only
+// AGAIN of the fear the next time the same scare frightens them
+const AGAIN = .7;
 
 class Encounter {
     constructor() {
@@ -828,6 +831,7 @@ class Visitor {
             numb: 0,
             seen: {},
             done: new Set(),
+            felt: new Set(), // scares that have already frightened this visitor
             fled: false,
             out: false,
             targetExitIdx: null,
@@ -906,8 +910,8 @@ class Visitor {
             if (!s.turnLogged) {
                 s.turnLogged = true;
                 const nxt = house.segs[i + 1];
-                note("Visitor " + this.id + " turns " + (s.exitTurn < 0 ? 'left' : 'right') + " in " + NAMES[s.kind].toLowerCase() + " " + (i + 1) +
-                    (nxt && s.turning && !nxt.turning ? ": the start of " + NAMES[nxt.kind].toLowerCase() + " " + (i + 2) + " is on the blind side" : ""));
+                note("Visitor " + this.id + " turns " + (s.exitTurn < 0 ? 'left' : 'right') + " in " + NAMES[s.kind] + " " + (i + 1) +
+                    (nxt && s.turning && !nxt.turning ? ": the start of " + NAMES[nxt.kind] + " " + (i + 2) + " is on the blind side" : ""));
             }
         });
 
@@ -921,7 +925,7 @@ class Visitor {
 
         if (this.fear >= PANIC && !this.fled) {
             this.fled = true;
-            note("Visitor " + this.id + " panics and runs for the nearest exit!");
+            note("Visitor " + this.id + " panics and runs for an exit!");
         }
     }
 
@@ -946,7 +950,9 @@ class Visitor {
                 e.ring = PULSE; // the yellow pulse, and the sound with it
                 playSuddenSound(e);
             }
-            const { d, why } = this.scareFear(o);
+            const { d: full, why } = this.scareFear(o);
+            const d = full * (this.felt.has(e) ? AGAIN : 1);
+            this.felt.add(e);
             this.seen[e.core] = (this.seen[e.core] || 0) + 1;
             this.numb = min(.6, this.numb + .1);
             this.add(e, d, grp, o);
@@ -954,7 +960,8 @@ class Visitor {
             for (const v of grp) {
                 const gap = abs(v.d - o.d);
                 if (v === this || v.fled || v.out || gap > NEAR_D) continue;
-                const f = v.scareFear(o).d * lerp(NEAR[1], NEAR[0], gap / NEAR_D);
+                const f = v.scareFear(o).d * lerp(NEAR[1], NEAR[0], gap / NEAR_D) * (v.felt.has(e) ? AGAIN : 1);
+                v.felt.add(e);
                 v.fear += f;
                 v.peak = max(v.peak, v.fear);
                 e.total += f;
@@ -962,7 +969,7 @@ class Visitor {
             }
             if (!e.logged) {
                 e.logged = true;
-                note("Visitor " + this.id + " hit by " + e.core + (e.conc != 'none' ? ' behind ' + e.conc : '') + ": +" + d.toFixed(0) + " fear" + why);
+                note("Visitor " + this.id + " hit by " + EL_NAMES[e.core] + (e.conc != 'none' ? ' behind ' + EL_NAMES[e.conc] : '') + ": +" + d.toFixed(0) + " fear" + why);
             }
         }
     }

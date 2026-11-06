@@ -306,14 +306,6 @@ label {
     color: var(--mut);
 }
 
-#scare-stats .bar {
-    display: block;
-    margin: 3px 0 0 auto;
-    height: 6px;
-    background: var(--ac);
-    border-radius: 1px;
-}
-
 /* Element chart: a row per category, icon + name per element, details on hover */
 .chart-row {
     display: grid;

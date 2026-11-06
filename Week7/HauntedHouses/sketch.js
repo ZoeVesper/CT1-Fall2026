@@ -325,7 +325,7 @@ function randomSelected() {
         randomEnc(q.e);
         q.e.total = q.e.hits = 0;
         edit();
-        note("New random " + q.e.kind + " in " + locName(q.loc) + ".");
+        note("New random " + EL_NAMES[q.e.kind] + " in " + locName(q.loc) + ".");
         return;
     }
     const i = selLoc ? house.segs.indexOf(selLoc) : -1;
@@ -936,19 +936,27 @@ function updateExitStats() {
 }
 
 // What an encounter is, in a few words
+// Element names as in the Element Chart
+const EL_NAMES = {
+    scare: 'Scare', cue: 'Visual Cue', block: 'Visual Block',
+    actor: 'Actor', installation: 'Installation', stationary: 'Stationary',
+    door: 'Door', shutter: 'Shutter', screen: 'Screen', display: 'Display',
+    darkness: 'Darkness', flashing: 'Flashing Light', sudden: 'Sudden Sound',
+};
 function encDesc(e) {
-    if (e.kind == 'block') return 'visual block (raises anticipation)';
-    const bits = [e.core];
-    if (e.conc != 'none') bits.push('behind ' + e.conc);
-    if (e.vis != 'none') bits.push(e.vis);
-    if (e.snd != 'none') bits.push(e.snd + ' sound');
-    return e.kind + ': ' + bits.join(', ');
+    if (e.kind == 'block') return 'Visual Block (raises anticipation)';
+    const bits = [EL_NAMES[e.core]];
+    if (e.conc != 'none') bits.push('behind ' + EL_NAMES[e.conc]);
+    if (e.vis != 'none') bits.push(EL_NAMES[e.vis]);
+    if (e.snd != 'none') bits.push(EL_NAMES[e.snd]);
+    return EL_NAMES[e.kind] + ': ' + bits.join(', ');
 }
 
-// Where an encounter is: a doorway, or a location's floor / wall slot
+// Where an encounter is: the entrance or after a location (a visual block),
+// or a location's floor / wall slot
 function encWhere(q) {
-    if (q.door !== null) return q.door == 0 ? 'Entrance' : 'Doorway after ' + locName(q.door - 1);
-    return locName(q.loc) + ' ' + q.place;
+    if (q.door !== null) return q.door == 0 ? 'Entrance' : 'After ' + locName(q.door - 1);
+    return locName(q.loc) + ' ' + cap(q.place) + ' Slot';
 }
 
 // Fear per encounter (numbered as on the map, in route order)
@@ -956,9 +964,8 @@ let lastTable = '';
 function updateScareTable(list) {
     const rows = list.filter(q => q.n).map(q => {
         const e = q.e, avg = e.hits ? e.total / e.hits : 0;
-        const bar = e.hits ? `<span class="bar" style="width:${min(100, avg * 1.5).toFixed(0)}%"></span>` : '';
         return `<tr><td>#${q.n}</td><td><span class="where">${encWhere(q)}</span><br>${encDesc(e)}</td>` +
-            `<td class="num">${e.hits || '–'}</td><td class="num">${e.hits ? avg.toFixed(1) : '–'}${bar}</td>` +
+            `<td class="num">${e.hits || '–'}</td><td class="num">${e.hits ? avg.toFixed(1) : '–'}</td>` +
             `<td class="num">${e.hits ? e.total.toFixed(0) : '–'}</td></tr>`;
     });
     const html = rows.length
