@@ -3,12 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exocrism</title>
+    <title>Exorcism</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@2.3.4/lib/p5.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/p5.sound@0.4.1/dist/p5.sound.min.js"></script>
+    <script src="https://unpkg.com/ml5@1/dist/ml5.js"></script>
 </head>
 <body>
+    <main>
+        <h1>Exorcism</h1>
+        <p class="mut">Every object in your room has something living in it. Find it with the camera, wake it with an open palm, and tame it with hand seals.</p>
+
+        <h2>Play</h2>
+        <div class="card">
+            <button id="btnBegin" class="go" onclick="begin()">Begin the Séance</button>
+            <button id="btnFlip" onclick="flipCamera()" disabled title="Switch between the front and back camera">Flip Camera</button>
+            <button onclick="releaseAll()" title="Let every tamed spirit go and empty the grimoire">Release All</button>
+            <p id="status" class="mut status"></p>
+        </div>
+
+        <!-- The game window, with the spirit's stats and the grimoire beside it -->
+        <div class="stage">
+            <div id="cv"></div>
+            <div class="card side">
+                <b>Spirit</b>
+                <div id="spirit"></div>
+                <b class="side-head">Grimoire <span id="tally" class="mut"></span></b>
+                <div id="grimoire"></div>
+            </div>
+        </div>
+
+        <h2>How to Play</h2>
+        <ol>
+            <li><b>Scan.</b> Point the camera around the room. An object that houses a spirit glows red.</li>
+            <li><b>Commune.</b> Hold an <b>open palm</b> in front of the camera to wake the spirit. To leave it asleep, do nothing and look away.</li>
+            <li><b>Tame.</b> The spirit shows two to five seals. Make each one with one hand, in order, and hold it until its bar fills. A wrong seal frightens the spirit, and when its patience runs out it slips back into the object.</li>
+            <li><b>Keep.</b> A tamed spirit joins the line at the bottom of the screen and follows your hand.</li>
+        </ol>
+        <p class="mut">No camera? The game falls back to a practice mode: press <b>O</b> to conjure an object, hold <b>Space</b> for the open palm, and hold <b>1–5</b> for the seals.</p>
+
+        <h2 id="seal-chart">Seal Chart</h2>
+        <div class="card" id="seals"></div>
+
+        <h2 id="bestiary-chart">Bestiary</h2>
+        <p>Each kind of object houses one family of spirit. A spirit's rarity changes how it looks and what it is called, but never its family.</p>
+        <div class="card" id="bestiary"></div>
+
+        <h2>Proposal</h2>
+        <p>An interactive experience controlled by things that are not connected to the computer: the objects already lying around a room, and one bare hand. The room is the game board. A bottle, a book or a chair is not a controller the player presses; the player only has to bring it into view, and the game answers by revealing what “lives” in it. The hand is the only tool: one gesture to decide to commune, and a sequence of seals to tame what comes out.</p>
+        <p>It runs in the browser with p5.js and two ml5.js models: <b>objectDetection</b> (COCO-SSD) recognises household objects, and <b>handPose</b> tracks 21 points of one hand, from which the game reads the seals. Only one hand is needed, so it also works on a phone held in the other hand.</p>
+
+        <h2>Rules</h2>
+        <ul>
+            <li><b>Object → family.</b> Drinking vessels hold water spirits, beds and couches hold sheet ghosts, screens hold phantoms, and so on (see the <a href="#bestiary-chart">Bestiary</a>).</li>
+            <li><b>Rarity.</b> Common 60%, Uncommon 30%, Rare 10%. Rarer spirits are bigger, grow horns (Uncommon) or a crown, a third eye and a cold glow (Rare), and their eyes change from red to amber to pale blue.</li>
+            <li><b>Family friendliness.</b> Fixed for each family: a hollow toy likes people, a blade imp does not.</li>
+            <li><b>Individual friendliness.</b> Rolled around the family's friendliness, so a spirit from a friendly family is usually friendly too. It sets the spirit's patience: 3.5 to 7 seconds for each seal it asks for. It also shows on its face.</li>
+            <li><b>Timidity.</b> Each spirit's own. A timid spirit asks for more seals, trembles, and loses more patience when it sees a wrong seal.</li>
+            <li><b>Seals needed.</b> 2 + rarity (0, 1 or 2) + timidity (0, 1 or 2), never more than 5.</li>
+        </ul>
+
+        <h2>Process</h2>
+        <ol>
+            <li><b>Idea.</b> A taming game where real objects are the doors and a hand is the key.</li>
+            <li><b>Objects.</b> COCO-SSD knows 80 kinds of object. I picked the ones found in a room and grouped them into ten families.</li>
+            <li><b>Seals.</b> For each finger, handPose gives the knuckle, two joints and the tip. A finger is straight when the tip is far from the knuckle compared with the finger's length, and curled when it has folded back. Five seals and the open palm are combinations of straight and curled fingers, plus two distances: fingertips pressed together (Sword Seal) and the thumb meeting the index finger (Ring Seal).</li>
+            <li><b>Spirits.</b> Drawn in code as fuzzy charcoal shapes with glowing eyes, after the icons of my Week 7 haunted house.</li>
+        </ol>
+        <!-- Add ideation sketches, diagrams and development screenshots here -->
+    </main>
+
+    <footer>
+        <p>Coding assisted by <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a> (Anthropic).</p>
+    </footer>
+
     <script src="sketch.js"></script>
 </body>
 </html>

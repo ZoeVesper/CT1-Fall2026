@@ -1,13 +1,330 @@
-* {
-    margin: 0;
-    padding: 0;
+/* Same look as the Week 7 haunted house */
+:root {
+    color-scheme: dark;
+    --bg: #0b0909;
+    --fg: #e8dede;
+    --mut: #a39494;
+    --card: #171212;
+    --ac: #c0392b;
+    --ln: #3a2a2a;
     box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.6 Georgia, "Times New Roman", serif;
+}
+
+/* One width for the whole page */
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+}
+
+h1 {
+    font-size: 2.2rem;
+    letter-spacing: .04em;
+    color: #e55;
+    margin: .2em 0;
+}
+
+h2 {
+    color: #e55;
+    border-bottom: 1px solid var(--ln);
+    padding-bottom: 4px;
+    margin-top: 2em;
+}
+
+p, li {
+    color: var(--fg);
+}
+
+ol, ul {
+    padding-left: 1.4em;
+}
+
+a {
+    color: #e55;
+}
+
+.mut {
+    color: var(--mut);
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--ln);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 12px 0;
+}
+
+button {
+    background: #241a1a;
+    color: var(--fg);
+    border: 1px solid #5a3a3a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font: inherit;
+    font-size: .9rem;
+    cursor: pointer;
+    margin: 2px;
+}
+
+button:hover {
+    background: #3a2020;
+}
+
+button:disabled {
+    opacity: .4;
+    cursor: default;
+}
+
+button.go {
+    background: #8e2a20;
+}
+
+.status {
+    margin: 8px 2px 0;
+    font: 13px/1.5 monospace;
+    color: #d9b;
+    min-height: 1.5em;
+}
+
+/* Game stage: canvas on the left, spirit and grimoire panel on the right */
+.stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 12px;
+    margin: 12px 0;
+}
+
+.stage .side {
+    margin: 0;
+    contain: size; /* takes the canvas's height; the grimoire scrolls inside */
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.stage .side > * {
+    flex: none;
+}
+
+.side-head {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--ln);
+}
+
+#tally {
+    font-weight: normal;
+    font-size: .8rem;
+}
+
+#spirit {
+    margin-top: 6px;
+    font-size: .85rem;
+    min-height: 150px;
+}
+
+.stage .side #grimoire {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin-top: 6px;
+    font: 13px/1.5 monospace;
+}
+
+@media (max-width: 1000px) {
+    .stage {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .stage .side {
+        contain: none;
+    }
+
+    .stage .side #grimoire {
+        max-height: 30vh;
+    }
+
+    #spirit {
+        min-height: 0;
+    }
+}
+
+#cv {
+    display: flex;
     align-items: center;
-    min-height: 100vh;
-    background: #f0f0f0;
+    justify-content: center;
+    background: rgb(8, 8, 8);
+    border: 1px solid var(--ln);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#cv canvas {
+    display: block;
+    max-width: 100%;
+}
+
+/* Rarity colours: the spirit's eye colour */
+.r0 { color: #ee5548; }
+.r1 { color: #ffb03c; }
+.r2 { color: #96e6ff; }
+
+.sp-name {
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+.stat {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr) 28px;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+    font: 12px/1.4 monospace;
+}
+
+.stat .num {
+    text-align: right;
+}
+
+.meter {
+    height: 6px;
+    background: #241a1a;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.meter i {
+    display: block;
+    height: 100%;
+    background: #e55;
+}
+
+.stat-note {
+    margin-top: 2px;
+    font: 12px/1.4 monospace;
+    color: var(--mut);
+}
+
+.stat-note b {
+    color: var(--fg);
+}
+
+.g-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 3px 0;
+    border-bottom: 1px solid #241a1a;
+}
+
+/* Seal chart: an icon and how to make it */
+#seals {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px 16px;
+}
+
+.seal {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: .9rem;
+    line-height: 1.45;
+}
+
+.seal img {
+    width: 64px;
+    height: 64px;
+    flex: none;
+    background: #0e0b0b;
+    border: 1px solid var(--ln);
+    border-radius: 8px;
+}
+
+/* Bestiary: a row per family, a portrait per rarity */
+.chart-row {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #241a1a;
+}
+
+.chart-row:last-child {
+    border-bottom: none;
+}
+
+.chart-cat {
+    color: #e55;
+    font-weight: bold;
+}
+
+.chart-note {
+    margin-top: 4px;
+    font-size: .75rem;
+    line-height: 1.4;
+    color: var(--mut);
+}
+
+.chart-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.chart-item {
+    width: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: .8rem;
+    text-align: center;
+}
+
+.chart-item img {
+    width: 100px;
+    height: 100px;
+    display: block;
+}
+
+@media (max-width: 600px) {
+    .chart-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .chart-item {
+        width: 96px;
+    }
+
+    .chart-item img {
+        width: 84px;
+        height: 84px;
+    }
+}
+
+footer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px 32px;
+}
+
+footer p {
+    margin: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--ln);
+    font-size: .85rem;
+    color: var(--mut);
 }

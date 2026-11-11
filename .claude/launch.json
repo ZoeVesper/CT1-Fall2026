@@ -12,6 +12,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8000", "--directory", "Week7/HauntedHouses"],
       "port": 8000
+    },
+    {
+      "name": "week8-exocrism",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8008", "--directory", "Week8/Homework/Exocrism"],
+      "port": 8008
     }
   ]
 }
