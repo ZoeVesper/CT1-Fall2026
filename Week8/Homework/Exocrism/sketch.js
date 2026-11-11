@@ -163,19 +163,24 @@ async function begin() {
         return;
     }
     document.getElementById('btnFlip').disabled = false;
+    // With p5 2.x, ml5 returns a promise for each model, so both are awaited
     try {
         setStatus('Summoning the hand reader (ml5 handPose)…');
-        handPose = ml5.handPose({ maxHands: 1 });
-        await handPose.ready;
+        handPose = await ml5.handPose({ maxHands: 1 });
         handPose.detectStart(vid, r => hands = r);
+    } catch (e) {
+        console.error(e);
+        setStatus('The hand reader could not load (' + e.message + '). Practice mode: press O, hold Space, hold 1–5.');
+        return;
+    }
+    try {
         setStatus('Summoning the object seer (ml5 objectDetection)…');
-        detector = ml5.objectDetection('cocossd');
-        await detector.ready;
+        detector = await ml5.objectDetection('cocossd');
         scanLoop();
         setStatus('Scanning the room… point the camera at a bottle, a book, a chair…');
     } catch (e) {
         console.error(e);
-        setStatus('The models could not load — practice mode. Press O, hold Space, hold 1–5.');
+        setStatus('The object seer could not load (' + e.message + '). Press O to conjure an object instead.');
     }
 }
 
