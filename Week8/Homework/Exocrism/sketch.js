@@ -210,9 +210,14 @@ async function openCamera() {
             vid.muted = true;
             vid.style.display = 'none';
             document.body.appendChild(vid);
+            // handPose measures the picture by the element's width and height
+            // (not videoWidth), so they must follow the camera, also when a
+            // phone is turned
+            vid.addEventListener('resize', sizeVideo);
         }
         vid.srcObject = stream;
         await vid.play();
+        sizeVideo();
         // a back camera shows the room as it is; a front camera is mirrored
         const s = stream.getVideoTracks()[0].getSettings();
         mirror = s.facingMode != 'environment';
@@ -221,6 +226,11 @@ async function openCamera() {
         console.warn('camera', e);
         camOn = false;
     }
+}
+
+function sizeVideo() {
+    vid.width = vid.videoWidth;
+    vid.height = vid.videoHeight;
 }
 
 // Switch between the front and back camera (phones)
@@ -267,19 +277,29 @@ function boxOf(d) {
 
 function dist3(a, b) { return Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0)) }
 
+// How straight each finger is (index, middle, ring, little): 1 = straight,
+// 0 = curled, 0.5 = in between. A finger is straight when its tip is far from
+// its knuckle compared with the finger's own length, and curled when the tip
+// has folded back.
+function handPoints(hand) {
+    return hand.keypoints3D && hand.keypoints3D.length == 21 ? hand.keypoints3D : hand.keypoints;
+}
+function readFingers(hand) {
+    const k = handPoints(hand);
+    return [5, 9, 13, 17].map(m => {
+        const r = dist3(k[m], k[m + 3]) / (dist3(k[m], k[m + 1]) + dist3(k[m + 1], k[m + 2]) + dist3(k[m + 2], k[m + 3]));
+        return r > 0.85 ? 1 : r < 0.78 ? 0 : 0.5;
+    });
+}
+
 // Which seal is this hand making? (null if none)
-// A finger is straight when its tip is far from its knuckle compared with the
-// finger's own length, and curled when the tip has folded back.
 function readSeal(hand) {
-    const k = hand.keypoints3D && hand.keypoints3D.length == 21 ? hand.keypoints3D : hand.keypoints;
-    const palm = dist3(k[0], k[9]);
-    const ratio = m => dist3(k[m], k[m + 3]) / (dist3(k[m], k[m + 1]) + dist3(k[m + 1], k[m + 2]) + dist3(k[m + 2], k[m + 3]));
-    const r = [5, 9, 13, 17].map(ratio); // index, middle, ring, little
-    const ext = r.map(v => v > 0.86), curl = r.map(v => v < 0.74);
-    const [I, M, R, P] = ext;
+    const k = handPoints(hand), palm = dist3(k[0], k[9]);
+    const f = readFingers(hand);
+    const [I, M, R, P] = f.map(v => v == 1), curl = f.map(v => v == 0);
 
     // Ring Seal: thumb tip meets the index tip, middle tip beside it
-    if (dist3(k[4], k[8]) < palm * 0.38 && dist3(k[8], k[12]) < palm * 0.45 && curl[2] && curl[3] && !P && !R) return 'ring';
+    if (dist3(k[4], k[8]) < palm * 0.38 && dist3(k[8], k[12]) < palm * 0.45 && curl[2] && curl[3]) return 'ring';
     if (I && M && R && curl[3]) return 'trident';
     if (I && M && curl[2] && curl[3] && dist3(k[8], k[12]) < palm * 0.42) return 'sword';
     if (I && P && curl[1] && curl[2]) return 'horns';
@@ -787,10 +807,15 @@ function drawHand() {
             for (let i = 1; i < chain.length; i++) line(...pt(chain[i - 1]), ...pt(chain[i]));
         }
         noStroke();
-        if (lastSeen) {
-            const [x, y] = pt(0);
-            label(SEALS[lastSeen].name, x, Math.min(H - 90, y + fs(1.4)), fs(.8), [255, 190, 190]);
-        }
+        // What the game reads, under the wrist: a bar for each finger (index
+        // to little) — tall = straight, short = curled — and the seal's name
+        const [x, y0] = pt(0), y = Math.min(H - 100, y0 + fs(1.2)), f = readFingers(hand);
+        f.forEach((v, i) => {
+            const h = 6 + v * 16;
+            fill(v == 1 ? color(255, 190, 190) : v == 0 ? color(120, 100, 104) : color(190, 150, 150));
+            rect(x - 23 + i * 12, y + 22 - h, 9, h, 2);
+        });
+        if (lastSeen) label(SEALS[lastSeen].name, x, y + 22 + fs(.8), fs(.8), [255, 190, 190]);
     } else if (keySeal && started && state != 'tame') {
         label(SEALS[keySeal].name + ' (keyboard)', W / 2, H - 92, fs(.8), [255, 190, 190]);
     }
