@@ -766,22 +766,27 @@ function tame(sp) {
     const rec = { fam: sp.fam, rarity: sp.rarity, seed: sp.seed, name: sp.name, from: sp.from, friend: sp.friend, timid: sp.timid };
     grimoire.push(rec);
     saveGrimoire();
-    addFollower({ ...rec, tex: sp.tex });
+    // it joins the row at the bottom only when it has landed there (updateLeaving)
+    sp.rec = rec;
+    sp.landX = W / 2;
     showPanel();
 }
 
-// Tamed: the spirit shrinks down to the row at the bottom. Fled: it fades away.
+// Tamed: the spirit itself shrinks down into the row at the bottom and stays
+// there as a follower. Fled: it fades away.
 function updateLeaving() {
     const t = Math.min(1, stateT / 1700), home = spiritHome();
     if (state == 'tamed') {
-        const e = t * t;
-        drawSpirit(spirit, home.x, lerp(home.y, H - 40, e), lerp(home.size, 70, e), 1 - e * .6);
+        const e = t * t, s = followerSize(spirit.rarity);
+        drawSpirit(spirit, lerp(home.x, spirit.landX, e), lerp(home.y, H - 16 - s / 2, e), lerp(home.size, s, e), 1);
         label('TAMED', W / 2, H * .5, fs(2.4), RARITY[spirit.rarity].eye);
+        if (t >= 1) addFollower({ ...spirit.rec, tex: spirit.tex }, spirit.landX);
     } else {
         drawSpirit(spirit, home.x, home.y - t * H * .12, home.size * (1 - t * .3), 1 - t);
         label('It slipped away…', W / 2, H * .5, fs(1.6), [163, 148, 148]);
     }
     if (t >= 1) {
+        if (state == 'fled') spirit.tex.remove();
         spirit = null;
         setState('scan');
         showPanel();
@@ -825,21 +830,24 @@ function drawHand() {
 
 // Tamed spirits walk in a line along the bottom, the newest in front, chasing
 // the hand (or wandering when there is no hand)
-function addFollower(rec) {
+function addFollower(rec, x) {
     if (!rec.tex) rec.tex = makeTexture(rec);
-    followers.unshift({ sp: rec, x: W / 2, phase: Math.random() * 6 });
+    followers.unshift({ sp: rec, x: x || W / 2, phase: Math.random() * 6 });
     while (followers.length > 10) followers.pop().sp.tex.remove();
 }
+
+// How big a follower of this rarity is drawn
+function followerSize(rarity) { return constrain(W / 10, 56, 76) * (.8 + rarity * .15) }
 
 function updateFollowers(dt) {
     if (!followers.length) return;
     let lead = W / 2 + Math.sin(millis() / 2600) * W * .3;
     if (hands[0] && camOn) lead = v2c(hands[0].keypoints[9].x, 0)[0];
-    const size = constrain(W / 10, 56, 76), gap = size * .78;
+    const size = followerSize(0) / .8, gap = size * .78;
     followers.forEach((f, i) => {
         const goal = i == 0 ? lead : followers[i - 1].x - gap * Math.sign(followers[0].x - followers[followers.length - 1].x || 1);
         f.x += (constrain(goal, size / 2, W - size / 2) - f.x) * Math.min(1, dt * .004);
-        const s = size * (.8 + f.sp.rarity * .15);
+        const s = followerSize(f.sp.rarity);
         drawSpirit(f.sp, f.x, H - 16 - s / 2 + Math.sin(millis() / 300 + f.phase) * 3, s, 1);
     });
 }
