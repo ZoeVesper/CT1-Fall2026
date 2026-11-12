@@ -1,20 +1,20 @@
 // EXORCISM — tame the spirits hiding in household objects.
 // The camera (ml5 objectDetection, COCO-SSD) finds objects in the room; each
-// kind of object houses one family of spirit. A single hand (ml5 handPose)
-// communes with it and then tames it with a sequence of seals.
+// kind of object houses one family of spirit. A click or a tap on the object
+// wakes the spirit, and a single hand (ml5 handPose) tames it with a sequence
+// of seals.
 
 // ───────────────────────── Data ─────────────────────────
 
-// The five taming seals, plus the open palm that starts a communion
+// The five taming seals
 const SEALS = {
     sword: { name: 'Sword Seal', how: 'Index and middle finger straight and pressed together; the rest curled.' },
     horns: { name: 'Horned Seal', how: 'Index and little finger straight; middle and ring curled.' },
     ring: { name: 'Ring Seal', how: 'Index and middle finger bent together to meet the thumb in a circle; ring and little finger curled.' },
     thread: { name: 'Thread Seal', how: 'Only the little finger straight; the rest curled.' },
     trident: { name: 'Trident Seal', how: 'Index, middle and ring finger straight and spread apart; the rest curled.' },
-    palm: { name: 'Open Palm', how: 'All fingers open. Hold it over a glowing object to commune with the spirit inside.' },
 };
-const TAMING = ['sword', 'horns', 'ring', 'thread', 'trident'];
+const TAMING = Object.keys(SEALS);
 
 // Rarity: chance, look and how many extra seals it asks for
 const RARITY = [
@@ -96,7 +96,7 @@ function familyByKey(key) { return FAMILIES.find(f => f.key == key) }
 // ───────────────────────── State ─────────────────────────
 
 const TEX = 256, UNIT = 100;       // spirit texture size; px per unit in it
-const HOLD_SEAL = 600, HOLD_PALM = 800, HOLD_WRONG = 900; // ms a gesture must be held
+const HOLD_SEAL = 600, HOLD_WRONG = 900; // ms a gesture must be held
 const QUIET = 12000;               // ms an object stays quiet after an encounter
 const STORE = 'exocrism-grimoire';
 
@@ -108,8 +108,7 @@ let quiet = {};                    // label -> time until it can stir again
 let state = 'idle';                // idle | scan | summon | tame | tamed | fled
 let stateT = 0;                    // ms in the current state
 let spirit = null;                 // the spirit being met
-let target = null;                 // the object being communed with (scan)
-let palmHold = 0, sealHold = 0, wrongHold = 0, shake = 0;
+let sealHold = 0, wrongHold = 0, shake = 0;
 let keySeal = null;                // practice mode: a seal held on the keyboard
 let fakeIdx = 0;
 let grimoire = [];                 // every tamed spirit (saved in the browser)
@@ -122,7 +121,13 @@ let lastSeen = null;               // the seal the hand is making right now
 
 function setup() {
     fitSize();
-    createCanvas(W, H).parent('cv');
+    const cnv = createCanvas(W, H);
+    cnv.parent('cv');
+    // a click or a tap on a glowing object wakes its spirit
+    cnv.elt.addEventListener('pointerdown', e => {
+        const r = cnv.elt.getBoundingClientRect();
+        tapAt((e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height);
+    });
     pixelDensity(Math.min(window.devicePixelRatio || 1, 2));
     textFont('Georgia');
     // phones look at the room with the back camera; laptops only have the front one
@@ -159,29 +164,38 @@ async function begin() {
     state = 'scan';
     stateT = 0;
     if (!camOn) {
-        setStatus('No camera — practice mode. Press O to conjure an object, hold Space to commune, hold 1–5 for the seals.');
+        setStatus('No camera — practice mode. Press O to conjure an object, click it, then hold 1–5 for the seals.');
         return;
     }
     document.getElementById('btnFlip').disabled = false;
-    // With p5 2.x, ml5 returns a promise for each model, so both are awaited
-    try {
-        setStatus('Summoning the hand reader (ml5 handPose)…');
-        handPose = await ml5.handPose({ maxHands: 1 });
-        handPose.detectStart(vid, r => hands = r);
-    } catch (e) {
-        console.error(e);
-        setStatus('The hand reader could not load (' + e.message + '). Practice mode: press O, hold Space, hold 1–5.');
-        return;
-    }
+    // With p5 2.x, ml5 returns a promise for each model, so both are awaited.
+    // The object seer comes first: it is the one the scan needs.
     try {
         setStatus('Summoning the object seer (ml5 objectDetection)…');
         detector = await ml5.objectDetection('cocossd');
         scanLoop();
-        setStatus('Scanning the room… point the camera at a bottle, a book, a chair…');
     } catch (e) {
         console.error(e);
         setStatus('The object seer could not load (' + e.message + '). Press O to conjure an object instead.');
     }
+    try {
+        if (detector) setStatus('Scanning the room… (still summoning the hand reader, ml5 handPose)');
+        handPose = await ml5.handPose({ maxHands: 1 });
+        if (state != 'scan') readHands(true);
+        if (detector && state == 'scan') setStatus('Scanning the room… click or tap an object that glows red.');
+    } catch (e) {
+        console.error(e);
+        setStatus('The hand reader could not load (' + e.message + '). Hold keys 1–5 for the seals instead.');
+    }
+}
+
+// Only one model runs at a time, so a phone can keep up: the object seer
+// while scanning, the hand reader while a spirit is out
+function readHands(on) {
+    if (!handPose) return;
+    if (on) handPose.detectStart(vid, r => { if (state != 'scan') hands = r });
+    else handPose.detectStop();
+    hands = [];
 }
 
 async function openCamera() {
@@ -266,7 +280,6 @@ function readSeal(hand) {
 
     // Ring Seal: thumb tip meets the index tip, middle tip beside it
     if (dist3(k[4], k[8]) < palm * 0.38 && dist3(k[8], k[12]) < palm * 0.45 && curl[2] && curl[3] && !P && !R) return 'ring';
-    if (I && M && R && P) return 'palm';
     if (I && M && R && curl[3]) return 'trident';
     if (I && M && curl[2] && curl[3] && dist3(k[8], k[12]) < palm * 0.42) return 'sword';
     if (I && P && curl[1] && curl[2]) return 'horns';
@@ -281,12 +294,11 @@ function currentSeal() {
     return null;
 }
 
-// Practice mode: O conjures an object, Space is the open palm, 1–5 are the seals
+// Practice mode: O conjures an object (click it to commune), 1–5 are the seals
 window.addEventListener('keydown', e => {
     if (!started || e.target.closest && e.target.closest('button, select, input, a')) return;
     const i = '12345'.indexOf(e.key);
     if (i >= 0) keySeal = TAMING[i];
-    if (e.key == ' ') { keySeal = 'palm'; e.preventDefault(); }
     if ((e.key == 'o' || e.key == 'O') && state == 'scan') {
         const fam = FAMILIES[fakeIdx++ % FAMILIES.length];
         detections = [{ fake: true, label: fam.objects[0], confidence: 1, until: millis() + 8000 }];
@@ -495,16 +507,14 @@ function makeGlyph(key) {
     pg.fill(232, 222, 222, 40);
     pg.rect(31, 54, 41, 36, 9);
     pg.noFill();
-    // thumb: folded unless the palm is open
+    // thumb: folded
     pg.strokeWeight(8);
-    if (key == 'palm') pg.line(30, 74, 12, 56);
-    else if (key != 'ring') pg.line(31, 74, 27, 66);
+    if (key != 'ring') pg.line(31, 74, 27, 66);
 
     if (key == 'sword') { finger(39, 38, 0); finger(47.5, 40, 0); stub(57); stub(66); }
     if (key == 'horns') { finger(37, 36, -8); stub(47); stub(57); finger(66, 28, 12); }
     if (key == 'thread') { stub(37); stub(47); stub(57); finger(66, 30, 10); }
     if (key == 'trident') { finger(37, 34, -20); finger(47, 40, 0); finger(57, 34, 20); stub(66); }
-    if (key == 'palm') { finger(37, 34, -14); finger(47, 40, -4); finger(57, 36, 6); finger(66, 27, 18); }
     if (key == 'ring') {
         stub(57); stub(66);
         pg.strokeWeight(7);
@@ -523,7 +533,7 @@ function draw() {
     lastSeen = currentSeal();
 
     if (state == 'idle') drawTitle();
-    if (state == 'scan') updateScan(dt);
+    if (state == 'scan') updateScan();
     if (state == 'summon') updateSummon();
     if (state == 'tame') updateTame(dt);
     if (state == 'tamed' || state == 'fled') updateLeaving();
@@ -584,56 +594,45 @@ function drawTitle() {
     label('Something lives in every object in this room.', W / 2, H * .4 + fs(2.6), fs(1));
 }
 
-// Scan: glow around every object that houses a spirit; an open palm communes
-function updateScan(dt) {
+// Scan: every object that houses a spirit glows; a click or a tap wakes it
+function updateScan() {
     const now = millis();
     detections = detections.filter(d => !d.fake || d.until > now);
-    target = detections.slice().sort((a, b) => b.confidence - a.confidence)[0] || null;
 
     for (const d of detections) {
-        const b = boxOf(d), on = d === target, pulse = .6 + .4 * Math.sin(now / 260);
+        const b = boxOf(d), pulse = .6 + .4 * Math.sin(now / 260);
         const ctx = drawingContext;
         ctx.save();
         ctx.shadowColor = 'rgb(238, 85, 85)';
-        ctx.shadowBlur = on ? 26 * pulse + 8 : 8;
-        noFill();
-        stroke(238, 85, 85, on ? 255 : 130);
-        strokeWeight(on ? 3 : 1.5);
-        const c = Math.min(b.w, b.h) * .22; // only the corners, like a viewfinder
-        for (const [sx, sy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
-            const x = b.x + sx * b.w, y = b.y + sy * b.h, dx = sx ? -c : c, dy = sy ? -c : c;
-            line(x, y, x + dx, y); line(x, y, x, y + dy);
-        }
+        ctx.shadowBlur = 22 * pulse + 8;
+        fill(238, 85, 85, 26 * pulse);
+        stroke(238, 85, 85);
+        strokeWeight(3);
+        rect(b.x, b.y, b.w, b.h, 6);
         ctx.restore();
         noStroke();
-        label(d.label + ' — something stirs', b.x + b.w / 2, Math.max(fs(1), b.y - fs(.9)), fs(.85), on ? [255, 190, 190] : [200, 170, 170]);
+        label(d.label + ' — something stirs', b.x + b.w / 2, Math.max(fs(1), b.y - fs(.9)), fs(.85), [255, 190, 190]);
     }
+    label(!detections.length ? 'Scanning the room…' : 'Click or tap a glowing object to commune', W / 2, fs(1.6), fs(1));
+}
 
-    if (!target) {
-        palmHold = 0;
-        label(started ? 'Scanning the room…' : '', W / 2, fs(1.6), fs(1));
-        return;
-    }
-    // Hold the open palm to commune; do nothing to leave the spirit asleep
-    palmHold = lastSeen == 'palm' ? palmHold + dt : Math.max(0, palmHold - dt * 2);
-    const b = boxOf(target), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-    label('Hold an open palm to commune', W / 2, fs(1.6), fs(1));
-    if (palmHold > 0) {
-        noFill();
-        stroke(255, 220, 220);
-        strokeWeight(5);
-        arc(cx, cy, 70, 70, -HALF_PI, -HALF_PI + TWO_PI * Math.min(1, palmHold / HOLD_PALM));
-        noStroke();
-    }
-    if (palmHold >= HOLD_PALM) {
-        spirit = makeSpirit(target.label, cx, cy);
-        quiet[target.label] = now + QUIET;
-        detections = [];
-        palmHold = sealHold = wrongHold = 0;
-        setState('summon');
-        showPanel();
-        setStatus('A ' + RARITY[spirit.rarity].name.toLowerCase() + ' spirit rises from the ' + spirit.from + '…');
-    }
+// A click or a tap on the canvas: wake the spirit in the object under it
+// (the smallest one, if boxes overlap). Leaving it alone lets it sleep.
+function tapAt(x, y) {
+    if (state != 'scan') return;
+    const pad = 14;
+    const hit = detections
+        .map(d => ({ d, b: boxOf(d) }))
+        .filter(({ b }) => x > b.x - pad && x < b.x + b.w + pad && y > b.y - pad && y < b.y + b.h + pad)
+        .sort((p, q) => p.b.w * p.b.h - q.b.w * q.b.h)[0];
+    if (!hit) return;
+    spirit = makeSpirit(hit.d.label, hit.b.x + hit.b.w / 2, hit.b.y + hit.b.h / 2);
+    quiet[hit.d.label] = millis() + QUIET;
+    detections = [];
+    sealHold = wrongHold = 0;
+    setState('summon');
+    showPanel();
+    setStatus('A ' + RARITY[spirit.rarity].name.toLowerCase() + ' spirit rises from the ' + spirit.from + '…');
 }
 
 // Where the spirit floats while it is being tamed, and how big it is
@@ -677,7 +676,7 @@ function updateTame(dt) {
     } else {
         sealHold = Math.max(0, sealHold - dt * 2);
         // a wrong seal frightens it (the seal just finished doesn't count)
-        if (lastSeen && lastSeen != 'palm' && lastSeen != prev) wrongHold += dt;
+        if (lastSeen && lastSeen != prev) wrongHold += dt;
         else wrongHold = 0;
         if (wrongHold > HOLD_WRONG) {
             wrongHold = 0;
@@ -766,11 +765,16 @@ function updateLeaving() {
         spirit = null;
         setState('scan');
         showPanel();
-        setStatus(camOn ? 'Scanning the room…' : 'Practice mode: press O to conjure an object.');
+        setStatus(camOn && detector ? 'Scanning the room… click or tap an object that glows red.' : 'Practice mode: press O to conjure an object, then click it.');
     }
 }
 
-function setState(s) { state = s; stateT = 0; }
+function setState(s) {
+    state = s;
+    stateT = 0;
+    if (s == 'summon') readHands(true);
+    if (s == 'scan') readHands(false);
+}
 
 // The tracked hand, as faint bones, with the seal it is making
 function drawHand() {
@@ -888,7 +892,7 @@ function portrait(sp) {
 function buildCharts() {
     document.getElementById('seals').innerHTML = Object.keys(SEALS).map((k, i) =>
         `<div class="seal"><img src="${glyphs[k].elt.toDataURL()}" alt="">` +
-        `<div><b>${SEALS[k].name}</b> <span class="mut">${k == 'palm' ? 'Space' : 'key ' + (i + 1)}</span><br><span class="mut">${SEALS[k].how}</span></div></div>`).join('');
+        `<div><b>${SEALS[k].name}</b> <span class="mut">key ${i + 1}</span><br><span class="mut">${SEALS[k].how}</span></div></div>`).join('');
 
     document.getElementById('bestiary').innerHTML = FAMILIES.map((fam, n) =>
         `<div class="chart-row"><div><div class="chart-cat">${fam.title}</div>` +

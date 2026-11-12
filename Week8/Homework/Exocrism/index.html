@@ -11,7 +11,7 @@
 <body>
     <main>
         <h1>Exorcism</h1>
-        <p class="mut">Every object in your room has something living in it. Find it with the camera, wake it with an open palm, and tame it with hand seals.</p>
+        <p class="mut">Every object in your room has something living in it. Find it with the camera, wake it with a touch, and tame it with hand seals.</p>
 
         <h2>Play</h2>
         <div class="card">
@@ -35,11 +35,11 @@
         <h2>How to Play</h2>
         <ol>
             <li><b>Scan.</b> Point the camera around the room. An object that houses a spirit glows red.</li>
-            <li><b>Commune.</b> Hold an <b>open palm</b> in front of the camera to wake the spirit. To leave it asleep, do nothing and look away.</li>
+            <li><b>Commune.</b> Click the glowing object, or tap it on a touch screen, to wake the spirit. To leave it asleep, don't touch it.</li>
             <li><b>Tame.</b> The spirit shows two to five seals. Make each one with one hand, in order, and hold it until its bar fills. A wrong seal frightens the spirit, and when its patience runs out it slips back into the object.</li>
             <li><b>Keep.</b> A tamed spirit joins the line at the bottom of the screen and follows your hand.</li>
         </ol>
-        <p class="mut">No camera? The game falls back to a practice mode: press <b>O</b> to conjure an object, hold <b>Space</b> for the open palm, and hold <b>1–5</b> for the seals.</p>
+        <p class="mut">No camera? The game falls back to a practice mode: press <b>O</b> to conjure an object, click it, and hold <b>1–5</b> for the seals.</p>
 
         <h2 id="seal-chart">Seal Chart</h2>
         <div class="card" id="seals"></div>
@@ -49,7 +49,7 @@
         <div class="card" id="bestiary"></div>
 
         <h2>Proposal</h2>
-        <p>An interactive experience controlled by things that are not connected to the computer: the objects already lying around a room, and one bare hand. The room is the game board. A bottle, a book or a chair is not a controller the player presses; the player only has to bring it into view, and the game answers by revealing what “lives” in it. The hand is the only tool: one gesture to decide to commune, and a sequence of seals to tame what comes out.</p>
+        <p>An interactive experience controlled by things that are not connected to the computer: the objects already lying around a room, and one bare hand. The room is the game board. A bottle, a book or a chair is not a controller the player presses; the player only has to bring it into view, and the game answers by revealing what “lives” in it. A touch on the object decides to commune with it, and the hand does the rest: a sequence of seals to tame what comes out.</p>
         <p>It runs in the browser with p5.js and two ml5.js models: <b>objectDetection</b> (COCO-SSD) recognises household objects, and <b>handPose</b> tracks 21 points of one hand, from which the game reads the seals. Only one hand is needed, so it also works on a phone held in the other hand.</p>
 
         <h2>Rules</h2>
@@ -66,7 +66,8 @@
         <ol>
             <li><b>Idea.</b> A taming game where real objects are the doors and a hand is the key.</li>
             <li><b>Objects.</b> COCO-SSD knows 80 kinds of object. I picked the ones found in a room and grouped them into ten families.</li>
-            <li><b>Seals.</b> For each finger, handPose gives the knuckle, two joints and the tip. A finger is straight when the tip is far from the knuckle compared with the finger's length, and curled when it has folded back. Five seals and the open palm are combinations of straight and curled fingers, plus two distances: fingertips pressed together (Sword Seal) and the thumb meeting the index finger (Ring Seal).</li>
+            <li><b>Seals.</b> For each finger, handPose gives the knuckle, two joints and the tip. A finger is straight when the tip is far from the knuckle compared with the finger's length, and curled when it has folded back. The five seals are combinations of straight and curled fingers, plus two distances: fingertips pressed together (Sword Seal) and the thumb meeting the index finger (Ring Seal).</li>
+            <li><b>Testing on a phone.</b> My first version woke a spirit with an open palm held in front of the camera. On a phone the hand covered the object, and running both models at once was too slow. Now a tap on the glowing object wakes the spirit, and only one model runs at a time: objectDetection while scanning, handPose while a spirit is out.</li>
             <li><b>Spirits.</b> Drawn in code as fuzzy charcoal shapes with glowing eyes, after the icons of my Week 7 haunted house.</li>
         </ol>
         <!-- Add ideation sketches, diagrams and development screenshots here -->
