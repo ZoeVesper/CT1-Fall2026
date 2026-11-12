@@ -96,7 +96,7 @@ function familyByKey(key) { return FAMILIES.find(f => f.key == key) }
 // ───────────────────────── State ─────────────────────────
 
 const TEX = 256, UNIT = 100;       // spirit texture size; px per unit in it
-const HOLD_SEAL = 600, HOLD_WRONG = 900; // ms a gesture must be held
+const HOLD_SEAL = 600, HOLD_WRONG = 900, GRACE = 450; // ms a gesture must be held
 const QUIET = 12000;               // ms an object stays quiet after an encounter
 const STORE = 'exocrism-grimoire';
 
@@ -108,7 +108,8 @@ let quiet = {};                    // label -> time until it can stir again
 let state = 'idle';                // idle | scan | summon | tame | tamed | fled
 let stateT = 0;                    // ms in the current state
 let spirit = null;                 // the spirit being met
-let sealHold = 0, wrongHold = 0, shake = 0;
+let sealHold = 0, wrongHold = 0, missed = 0, shake = 0;
+let handRate = 0, handCount = 0, handClock = 0; // hand readings per second
 let keySeal = null;                // practice mode: a seal held on the keyboard
 let fakeIdx = 0;
 let grimoire = [];                 // every tamed spirit (saved in the browser)
@@ -193,7 +194,7 @@ async function begin() {
 // while scanning, the hand reader while a spirit is out
 function readHands(on) {
     if (!handPose) return;
-    if (on) handPose.detectStart(vid, r => { if (state != 'scan') hands = r });
+    if (on) handPose.detectStart(vid, r => { if (state != 'scan') { hands = r; handCount++; } });
     else handPose.detectStop();
     hands = [];
 }
@@ -277,33 +278,40 @@ function boxOf(d) {
 
 function dist3(a, b) { return Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0)) }
 
-// How straight each finger is (index, middle, ring, little): 1 = straight,
-// 0 = curled, 0.5 = in between. A finger is straight when its tip is far from
-// its knuckle compared with the finger's own length, and curled when the tip
-// has folded back.
+// How far each finger (index, middle, ring, little) is stretched out: the
+// distance from knuckle to tip, divided by the finger's own length. About 1
+// when straight, 0.3–0.5 when folded into the palm.
 function handPoints(hand) {
     return hand.keypoints3D && hand.keypoints3D.length == 21 ? hand.keypoints3D : hand.keypoints;
 }
-function readFingers(hand) {
+function fingerRatios(hand) {
     const k = handPoints(hand);
-    return [5, 9, 13, 17].map(m => {
-        const r = dist3(k[m], k[m + 3]) / (dist3(k[m], k[m + 1]) + dist3(k[m + 1], k[m + 2]) + dist3(k[m + 2], k[m + 3]));
-        return r > 0.85 ? 1 : r < 0.78 ? 0 : 0.5;
-    });
+    return [5, 9, 13, 17].map(m =>
+        dist3(k[m], k[m + 3]) / (dist3(k[m], k[m + 1]) + dist3(k[m + 1], k[m + 2]) + dist3(k[m + 2], k[m + 3])));
+}
+
+// Straight (1) or curled (0) for each finger. A finger between the two limits
+// keeps what it was before, so a shaky reading (a phone tracks the hand less
+// steadily than a laptop) does not flicker between the two.
+let fingerMem = [0, 0, 0, 0];
+function readFingers(hand) {
+    fingerMem = fingerRatios(hand).map((r, i) => r > 0.84 ? 1 : r < 0.76 ? 0 : fingerMem[i]);
+    return fingerMem;
 }
 
 // Which seal is this hand making? (null if none)
 function readSeal(hand) {
     const k = handPoints(hand), palm = dist3(k[0], k[9]);
-    const f = readFingers(hand);
-    const [I, M, R, P] = f.map(v => v == 1), curl = f.map(v => v == 0);
+    const [I, M, R, P] = readFingers(hand).map(v => v == 1);
 
-    // Ring Seal: thumb tip meets the index tip, middle tip beside it
-    if (dist3(k[4], k[8]) < palm * 0.38 && dist3(k[8], k[12]) < palm * 0.45 && curl[2] && curl[3]) return 'ring';
-    if (I && M && R && curl[3]) return 'trident';
-    if (I && M && curl[2] && curl[3] && dist3(k[8], k[12]) < palm * 0.42) return 'sword';
-    if (I && P && curl[1] && curl[2]) return 'horns';
-    if (P && curl[0] && curl[1] && curl[2]) return 'thread';
+    // Ring Seal: thumb tip meets the index tip, middle tip beside it; the index
+    // finger is bent but not folded into the palm (that would be a fist)
+    if (!R && !P && fingerRatios(hand)[0] > 0.5 &&
+        dist3(k[4], k[8]) < palm * 0.5 && dist3(k[8], k[12]) < palm * 0.6) return 'ring';
+    if (I && M && R && !P) return 'trident';
+    if (I && M && !R && !P && dist3(k[8], k[12]) < palm * 0.6) return 'sword';
+    if (I && P && !M && !R) return 'horns';
+    if (P && !I && !M && !R) return 'thread';
     return null;
 }
 
@@ -554,8 +562,10 @@ function makeGlyph(key) {
 // ───────────────────────── Game loop ─────────────────────────
 
 function draw() {
-    const dt = Math.min(deltaTime, 100);
+    const dt = Math.min(deltaTime, 250); // a slow phone still counts real time
     stateT += dt;
+    handClock += deltaTime;
+    if (handClock >= 1000) { handRate = handCount; handCount = handClock = 0; }
     drawRoom();
     lastSeen = currentSeal();
 
@@ -658,7 +668,7 @@ function tapAt(x, y) {
     spirit = makeSpirit(hit.d.label, hit.b.x + hit.b.w / 2, hit.b.y + hit.b.h / 2);
     quiet[hit.d.label] = millis() + QUIET;
     detections = [];
-    sealHold = wrongHold = shake = 0;
+    sealHold = wrongHold = missed = shake = 0;
     setState('summon');
     showPanel();
     setStatus('A ' + RARITY[spirit.rarity].name.toLowerCase() + ' spirit rises from the ' + spirit.from + '…');
@@ -702,9 +712,11 @@ function updateTame(dt) {
 
     if (lastSeen == need) {
         sealHold += dt;
-        wrongHold = 0;
+        wrongHold = missed = 0;
     } else {
-        sealHold = Math.max(0, sealHold - dt * 2);
+        // losing the seal for a moment (a dropped reading) does not undo the hold
+        missed += dt;
+        if (missed > GRACE) sealHold = Math.max(0, sealHold - dt * 2);
         // a wrong seal frightens it (the seal just finished doesn't count)
         if (lastSeen && lastSeen != prev) wrongHold += dt;
         else wrongHold = 0;
@@ -716,7 +728,7 @@ function updateTame(dt) {
         }
     }
     if (sealHold >= HOLD_SEAL) {
-        sealHold = 0;
+        sealHold = missed = 0;
         sp.idx++;
         if (sp.idx >= sp.seq.length) {
             tame(sp);
@@ -814,6 +826,10 @@ function setState(s) {
 // The tracked hand, as faint bones, with the seal it is making
 function drawHand() {
     const hand = hands[0];
+    // how many times a second the hand reader answers (low on a slow phone)
+    if (camOn && handPose && state != 'scan') {
+        label('hand ' + handRate + '/s', 16, H - 86, fs(.7), [163, 148, 148], LEFT);
+    }
     if (hand && camOn) {
         const pt = i => v2c(hand.keypoints[i].x, hand.keypoints[i].y);
         stroke(232, 222, 222, 150);
@@ -824,10 +840,10 @@ function drawHand() {
         noStroke();
         // What the game reads, under the wrist: a bar for each finger (index
         // to little) — tall = straight, short = curled — and the seal's name
-        const [x, y0] = pt(0), y = Math.min(H - 100, y0 + fs(1.2)), f = readFingers(hand);
-        f.forEach((v, i) => {
+        const [x, y0] = pt(0), y = Math.min(H - 100, y0 + fs(1.2));
+        fingerMem.forEach((v, i) => {
             const h = 6 + v * 16;
-            fill(v == 1 ? color(255, 190, 190) : v == 0 ? color(120, 100, 104) : color(190, 150, 150));
+            fill(v == 1 ? color(255, 190, 190) : color(120, 100, 104));
             rect(x - 23 + i * 12, y + 22 - h, 9, h, 2);
         });
         if (lastSeen) label(SEALS[lastSeen].name, x, y + 22 + fs(.8), fs(.8), [255, 190, 190]);
