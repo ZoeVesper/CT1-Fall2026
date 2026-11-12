@@ -164,7 +164,7 @@ async function begin() {
     state = 'scan';
     stateT = 0;
     if (!camOn) {
-        setStatus('No camera — practice mode. Press O to conjure an object, click it, then hold 1–5 for the seals.');
+        setStatus('No camera — practice mode. Press Space to conjure an object, click it, then hold 1–5 for the seals.');
         return;
     }
     document.getElementById('btnFlip').disabled = false;
@@ -176,7 +176,7 @@ async function begin() {
         scanLoop();
     } catch (e) {
         console.error(e);
-        setStatus('The object seer could not load (' + e.message + '). Press O to conjure an object instead.');
+        setStatus('The object seer could not load (' + e.message + '). Press Space to conjure an object instead.');
     }
     try {
         if (detector) setStatus('Scanning the room… (still summoning the hand reader, ml5 handPose)');
@@ -314,12 +314,16 @@ function currentSeal() {
     return null;
 }
 
-// Practice mode: O conjures an object (click it to commune), 1–5 are the seals
+// Practice mode: Space conjures an object (click it to commune), 1–5 are
+// the seals, so one hand can reach them all. The keys are read by their place on the keyboard (e.code), so
+// they also work while a Chinese or other input method is switched on.
 window.addEventListener('keydown', e => {
     if (!started || e.target.closest && e.target.closest('button, select, input, a')) return;
-    const i = '12345'.indexOf(e.key);
+    const i = ['1', '2', '3', '4', '5'].findIndex(n => e.code == 'Digit' + n || e.code == 'Numpad' + n || e.key == n);
     if (i >= 0) keySeal = TAMING[i];
-    if ((e.key == 'o' || e.key == 'O') && state == 'scan') {
+    if (e.code != 'Space' && e.key != ' ') return;
+    e.preventDefault(); // Space would scroll the page
+    if (state == 'scan') {
         const fam = FAMILIES[fakeIdx++ % FAMILIES.length];
         detections = [{ fake: true, label: fam.objects[0], confidence: 1, until: millis() + 8000 }];
     }
@@ -444,7 +448,10 @@ function drawFace(g, sp, x, y, size, blink) {
     const ctx = g.drawingContext;
     const mood = sp.friend >= 65 ? 1 : sp.friend < 35 ? -1 : 0; // smile, frown or waver
     const ew = k * (fam.face == 'cyclops' ? .34 : .11);
-    ctx.save();
+    // The glow is set straight on the canvas and switched off again at the end.
+    // (Not with ctx.save / ctx.restore: p5 remembers the last fill colour and
+    // skips setting it again, so restoring an older one behind its back made
+    // the next spirit's eyes come out in the wrong colour, or not at all.)
     ctx.shadowColor = `rgb(${col})`;
     ctx.shadowBlur = k * .18;
     g.noStroke();
@@ -494,7 +501,7 @@ function drawFace(g, sp, x, y, size, blink) {
             px = nx; py = ny;
         }
     }
-    ctx.restore();
+    ctx.shadowBlur = 0;
     g.noStroke();
 }
 
@@ -573,20 +580,23 @@ function drawRoom() {
         if (mirror) { translate(W, 0); scale(-1, 1); }
         ctx.drawImage(vid, (W - w) / 2, (H - h) / 2, w, h);
         pop();
+        ctx.save(); // fills made straight on the canvas are undone by restore
         ctx.globalCompositeOperation = 'saturation';
         ctx.fillStyle = '#808080';
         ctx.fillRect(0, 0, W, H);
         ctx.globalCompositeOperation = 'multiply';
         ctx.fillStyle = 'rgb(158, 134, 144)';
         ctx.fillRect(0, 0, W, H);
-        ctx.globalCompositeOperation = 'source-over';
+        ctx.restore();
     }
     // darkness creeping in from the edges
     const grad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .25, W / 2, H / 2, Math.max(W, H) * .72);
     grad.addColorStop(0, 'rgba(8,6,8,0.12)');
     grad.addColorStop(1, 'rgba(8,6,8,0.9)');
+    ctx.save();
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
+    ctx.restore();
 }
 
 // A rough charcoal frame, overshooting the corners
@@ -622,14 +632,13 @@ function updateScan() {
     for (const d of detections) {
         const b = boxOf(d), pulse = .6 + .4 * Math.sin(now / 260);
         const ctx = drawingContext;
-        ctx.save();
         ctx.shadowColor = 'rgb(238, 85, 85)';
         ctx.shadowBlur = 22 * pulse + 8;
         fill(238, 85, 85, 26 * pulse);
         stroke(238, 85, 85);
         strokeWeight(3);
         rect(b.x, b.y, b.w, b.h, 6);
-        ctx.restore();
+        ctx.shadowBlur = 0;
         noStroke();
         label(d.label + ' — something stirs', b.x + b.w / 2, Math.max(fs(1), b.y - fs(.9)), fs(.85), [255, 190, 190]);
     }
@@ -649,7 +658,7 @@ function tapAt(x, y) {
     spirit = makeSpirit(hit.d.label, hit.b.x + hit.b.w / 2, hit.b.y + hit.b.h / 2);
     quiet[hit.d.label] = millis() + QUIET;
     detections = [];
-    sealHold = wrongHold = 0;
+    sealHold = wrongHold = shake = 0;
     setState('summon');
     showPanel();
     setStatus('A ' + RARITY[spirit.rarity].name.toLowerCase() + ' spirit rises from the ' + spirit.from + '…');
@@ -657,10 +666,11 @@ function tapAt(x, y) {
 
 // Where the spirit floats while it is being tamed, and how big it is
 function spiritHome() {
-    const sp = spirit, timid = sp.timid / 100;
+    const sp = spirit;
     const size = Math.min(W, H) * .5 * RARITY[sp.rarity].scale;
     return {
-        x: W / 2 + Math.sin(millis() / 900) * W * .02 + (Math.random() - .5) * (timid * 3 + shake),
+        // a slow drift; `shake` adds a quick wobble that dies away after a wrong seal
+        x: W / 2 + Math.sin(millis() / 900) * W * .02 + Math.sin(millis() / 28) * shake * .5,
         y: H * .36 + Math.sin(millis() / 600) * H * .015,
         size,
     };
@@ -790,7 +800,7 @@ function updateLeaving() {
         spirit = null;
         setState('scan');
         showPanel();
-        setStatus(camOn && detector ? 'Scanning the room… click or tap an object that glows red.' : 'Practice mode: press O to conjure an object, then click it.');
+        setStatus(camOn && detector ? 'Scanning the room… click or tap an object that glows red.' : 'Practice mode: press Space to conjure an object, then click it.');
     }
 }
 
