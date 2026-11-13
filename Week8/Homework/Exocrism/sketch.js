@@ -156,12 +156,17 @@ function windowResized() {
 // ───────────────────────── Camera and models ─────────────────────────
 
 // Called by the Begin button (browsers only open the camera after a click)
+let run = 0;                       // goes up with every Begin and Stop
+let detectorLoad = null, handLoad = null;
 async function begin() {
     if (started) return;
     started = true;
+    const me = ++run;              // a Stop pressed while this waits makes it stale
     document.getElementById('btnBegin').disabled = true;
+    document.getElementById('btnStop').disabled = false;
     setStatus('Opening the camera…');
     await openCamera();
+    if (me != run) return closeCamera();
     state = 'scan';
     stateT = 0;
     if (!camOn) {
@@ -171,23 +176,66 @@ async function begin() {
     document.getElementById('btnFlip').disabled = false;
     // With p5 2.x, ml5 returns a promise for each model, so both are awaited.
     // The object seer comes first: it is the one the scan needs.
+    // Each model is loaded once and kept for the next Begin.
     try {
-        setStatus('Summoning the object seer (ml5 objectDetection)…');
-        detector = await ml5.objectDetection('cocossd');
-        scanLoop();
+        if (!detector) setStatus('Summoning the object seer (ml5 objectDetection)…');
+        const first = !detectorLoad;
+        detectorLoad = detectorLoad || ml5.objectDetection('cocossd');
+        detector = await detectorLoad;
+        if (first) scanLoop();
     } catch (e) {
         console.error(e);
-        setStatus('The object seer could not load (' + e.message + '). Press Space to conjure an object instead.');
+        detectorLoad = null;
+        if (me == run) setStatus('The object seer could not load (' + e.message + '). Press Space to conjure an object instead.');
     }
+    if (me != run) return;
     try {
         if (detector) setStatus('Scanning the room… (still summoning the hand reader, ml5 handPose)');
-        handPose = await ml5.handPose({ maxHands: 1 });
+        handLoad = handLoad || ml5.handPose({ maxHands: 1 });
+        handPose = await handLoad;
+        if (me != run) return;
         if (state != 'scan') readHands(true);
         if (detector && state == 'scan') setStatus('Scanning the room… click or tap an object that glows red.');
     } catch (e) {
         console.error(e);
-        setStatus('The hand reader could not load (' + e.message + '). Hold keys 1–5 for the seals instead.');
+        handLoad = null;
+        if (me == run) setStatus('The hand reader could not load (' + e.message + '). Hold keys 1–5 for the seals instead.');
     }
+}
+
+// Called by the Stop button: closes the camera and goes back to the title.
+// Tamed spirits stay; a spirit that was being tamed is let go.
+function endSeance() {
+    if (!started) return;
+    started = false;
+    run++;
+    readHands(false);
+    closeCamera();
+    // a spirit already tamed joins the row; any other is let go
+    if (spirit) {
+        if (state == 'tamed') addFollower({ ...spirit.rec, tex: spirit.tex }, spirit.landX);
+        else spirit.tex.remove();
+    }
+    state = 'idle';
+    stateT = 0;
+    spirit = null;
+    detections = [];
+    keySeal = null;
+    sealHold = wrongHold = 0;
+    document.getElementById('btnBegin').disabled = false;
+    document.getElementById('btnStop').disabled = true;
+    document.getElementById('btnFlip').disabled = true;
+    showPanel();
+    setStatus('The camera is closed. Press “Begin the Séance” to wake it again.');
+}
+
+function closeCamera() {
+    if (vid && vid.srcObject) {
+        vid.srcObject.getTracks().forEach(t => t.stop());
+        vid.srcObject = null;
+    }
+    camOn = false;
+    hands = [];
 }
 
 // Only one model runs at a time, so a phone can keep up: the object seer

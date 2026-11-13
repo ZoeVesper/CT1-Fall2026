@@ -364,8 +364,8 @@ button.go {
 .shots {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-auto-rows: 1fr; /* every card as tall as the tallest */
     gap: 16px;
-    align-items: start;
     margin: 12px 0;
 }
 
@@ -377,10 +377,13 @@ button.go {
     padding: 10px;
 }
 
+/* Every screenshot sits in the same 4:3 frame, shown whole */
 .shots img {
     display: block;
     width: 100%;
-    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: contain;
+    background: #0e0b0b;
     border-radius: 4px;
 }
 
