@@ -1,4 +1,4 @@
-// EXORCISM — tame the spirits hiding in household objects.
+// FAMILIARS — tame the spirits hiding in household objects.
 // The camera (ml5 objectDetection, COCO-SSD) finds objects in the room; each
 // kind of object houses one family of spirit. A click or a tap on the object
 // wakes the spirit, and a single hand (ml5 handPose) tames it with a sequence
@@ -630,7 +630,7 @@ function label(str, x, y, size, col, align) {
 function fs(k) { return Math.max(12, W / 46) * k }
 
 function drawTitle() {
-    label('EXORCISM', W / 2, H * .4, fs(2.6), [238, 85, 85]);
+    label('FAMILIARS', W / 2, H * .4, fs(2.6), [238, 85, 85]);
     label('Something lives in every object in this room.', W / 2, H * .4 + fs(2.6), fs(1));
 }
 

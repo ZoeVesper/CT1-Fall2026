@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exorcism</title>
+    <title>Familiars</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@2.3.4/lib/p5.min.js"></script>
     <script src="https://unpkg.com/ml5@1/dist/ml5.js"></script>
 </head>
 <body>
     <main>
-        <h1>Exorcism</h1>
+        <h1>Familiars</h1>
         <p class="mut">Every object in your room has something living in it. Find it with the camera, wake it with a touch, and tame it with hand seals.</p>
 
         <h2>Play</h2>
@@ -49,8 +49,10 @@
         <div class="card" id="bestiary"></div>
 
         <h2>Proposal</h2>
-        <p>An interactive experience controlled by things that are not connected to the computer: the objects already lying around a room, and one bare hand. The room is the game board. A bottle, a book or a chair is not a controller the player presses; the player only has to bring it into view, and the game answers by revealing what “lives” in it. A touch on the object decides to commune with it, and the hand does the rest: a sequence of seals to tame what comes out.</p>
-        <p>It runs in the browser with p5.js and two ml5.js models: <b>objectDetection</b> (COCO-SSD) recognises household objects, and <b>handPose</b> tracks 21 points of one hand, from which the game reads the seals. Only one hand is needed, so it also works on a phone held in the other hand.</p>
+        <p>A game about taming, not fighting. It is controlled by two things that are not connected to the computer: the everyday objects in a room, and one bare hand.</p>
+        <p>The idea comes from animism: every everyday item has a spirit living in it. The camera finds an object, a touch wakes its spirit, and the player tames it with hand seals, the way the Yin-Yang Masters do. A tamed spirit is not defeated. It stays and follows the player, like a pet.</p>
+        <p>The seals are simple shapes made with the fingers of one hand, so the game can be played on a smartphone held in the other hand.</p>
+        <p>It runs in the browser with p5.js and two ml5.js models: <b>objectDetection</b> finds the objects, and <b>handPose</b> reads the hand.</p>
 
         <h2>Rules</h2>
         <ul>
@@ -63,14 +65,55 @@
         </ul>
 
         <h2>Process</h2>
-        <ol>
-            <li><b>Idea.</b> A taming game where real objects are the doors and a hand is the key.</li>
-            <li><b>Objects.</b> COCO-SSD knows 80 kinds of object. I picked the ones found in a room and grouped them into ten families.</li>
-            <li><b>Seals.</b> For each finger, handPose gives the knuckle, two joints and the tip. A finger is straight when the tip is far from the knuckle compared with the finger's length, and curled when it has folded back. The five seals are combinations of straight and curled fingers, plus two distances: fingertips pressed together (Sword Seal) and the thumb meeting the index finger (Ring Seal).</li>
-            <li><b>Testing on a phone.</b> My first version woke a spirit with an open palm held in front of the camera. On a phone the hand covered the object, and running both models at once was too slow. Now a tap on the glowing object wakes the spirit, and only one model runs at a time: objectDetection while scanning, handPose while a spirit is out.</li>
-            <li><b>Spirits.</b> Drawn in code as fuzzy charcoal shapes with glowing eyes, after the icons of my Week 7 haunted house.</li>
+        <p><b>Ideation.</b></p>
+        <figure class="sketch">
+            <img src="Images/Sketch.png" alt="Hand-drawn flowchart of the idea: from hand movement as a sign, to drawing signs to defeat demons, to taming spirits that live in everyday objects" loading="lazy">
+        </figure>
+        <ol class="chain">
+            <li><b>Interactive.</b> The brief asks for something controlled by real things that are not connected to the computer.</li>
+            <li><b>Hand movement as a sign.</b> A hand can make a sign, or a seal.</li>
+            <li><b>Draw the sign in the air.</b> Trace a shape, like a star, with a finger in front of the camera.</li>
+            <li><b>Use the drawings to defeat demons.</b> The project was first called <em>Exorcism</em>.</li>
+            <li><b>Two problems.</b>
+                <ul>
+                    <li>A sign is hard to draw by hand in the air. So the signs became shapes made with the fingers, and with one hand only, so the game can be played on a smartphone held in the other.</li>
+                    <li>Defeating demons is too violent. I need some peace in life.</li>
+                </ul>
+            </li>
+            <li><b>Tame them instead.</b> Tame demons and spirits, like the Yin-Yang Masters do. (Also, I want pets.) A spirit that stays with its tamer is a familiar, so the project became <em>Familiars</em>.</li>
+            <li><b>Animism.</b> Everyday items have spirits, which can be summoned and tamed. So the objects in the room became the place the spirits come from.</li>
         </ol>
-        <!-- Add ideation sketches, diagrams and development screenshots here -->
+        <p><b>Building it.</b></p>
+        <ol>
+            <li><b>Objects.</b> COCO-SSD knows 80 kinds of object. I picked the ones found in a room and grouped them into ten families.</li>
+            <li><b>Seals.</b> handPose reads the position of the hand and each finger. I chose five seals that can be made with one hand and are not complicated shapes.</li>
+            <li><b>Testing on a phone.</b> My first version woke a spirit with an open palm held in front of the camera. On a phone the hand covered the object, and running both models at once was too slow. Now a tap on the glowing object wakes the spirit, and only one model runs at a time: objectDetection while scanning, handPose while a spirit is out.</li>
+            <li><b>Spirits.</b> Their look follows the drawing style of my Week 7 haunted house.</li>
+        </ol>
+
+        <h2>Development Screenshots</h2>
+        <div class="shots">
+            <figure>
+                <img src="Images/TestMode.png" alt="A Murmur spirit being tamed, with two seals to make and its stats in the side panel" loading="lazy">
+                <figcaption><b>Practice mode.</b> Taming a Murmur with the keyboard instead of the camera. The panel on the right shows its friendliness, its timidity and how many seals it asks for.</figcaption>
+            </figure>
+            <figure>
+                <img src="Images/TestMode2.png" alt="Five tamed spirits standing in a row at the bottom of the game window" loading="lazy">
+                <figcaption><b>Followers.</b> Tamed spirits walk in a row along the bottom of the screen and are listed in the Grimoire.</figcaption>
+            </figure>
+            <figure>
+                <img src="Images/Double.png" alt="A tamed spirit in the middle of the screen and a copy of it at the bottom" loading="lazy">
+                <figcaption><b>Bug: one spirit, drawn twice.</b> A tamed spirit joined the row at the bottom at once, while it was still moving down the screen. Now it joins the row only when it lands there.</figcaption>
+            </figure>
+            <figure>
+                <img src="Images/Inconsistence.png" alt="Four followers; one has pale eyes instead of red" loading="lazy">
+                <figcaption><b>Bug: a different face.</b> A follower's eyes came out in the wrong colour, so it no longer looked like the spirit that was summoned.</figcaption>
+            </figure>
+            <figure>
+                <img src="Images/NoEyes.png" alt="A large Drowned King spirit with a mouth but no eyes" loading="lazy">
+                <figcaption><b>Bug: no eyes.</b> The eyes of the spirit being tamed disappeared. This and the bug before it had one cause: p5.js skips setting a fill colour it believes is already set, and my code had changed the colour on the canvas directly, so the eyes were painted with whatever colour was left there.</figcaption>
+            </figure>
+        </div>
     </main>
 
     <footer>

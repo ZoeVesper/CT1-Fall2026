@@ -315,6 +315,86 @@ button.go {
     }
 }
 
+/* Ideation: each step leads to the next, with an arrow between them */
+.chain {
+    list-style: none;
+    padding-left: 0;
+}
+
+.chain > li {
+    background: var(--card);
+    border: 1px solid var(--ln);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.chain > li + li {
+    margin-top: 26px;
+    position: relative;
+}
+
+.chain > li + li::before {
+    content: "↓";
+    position: absolute;
+    top: -26px;
+    left: 16px;
+    line-height: 26px;
+    color: #e55;
+}
+
+.chain ul {
+    margin: 4px 0 0;
+}
+
+/* Development screenshots: a grid of pictures with a caption under each */
+/* The hand-drawn ideation flowchart */
+.sketch {
+    margin: 12px 0;
+    max-width: 900px;
+}
+
+.sketch img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--ln);
+    border-radius: 8px;
+}
+
+.shots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    align-items: start;
+    margin: 12px 0;
+}
+
+.shots figure {
+    margin: 0;
+    background: var(--card);
+    border: 1px solid var(--ln);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.shots img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
+.shots figcaption {
+    margin-top: 8px;
+    font-size: .85rem;
+    line-height: 1.5;
+    color: var(--mut);
+}
+
+.shots figcaption b {
+    color: var(--fg);
+}
+
 footer {
     max-width: 1200px;
     margin: 0 auto;
