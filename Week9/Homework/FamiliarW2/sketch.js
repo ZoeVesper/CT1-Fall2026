@@ -98,7 +98,7 @@ function familyByKey(key) { return FAMILIES.find(f => f.key == key) }
 const TEX = 256, UNIT = 100;       // spirit texture size; px per unit in it
 const HOLD_SEAL = 600, HOLD_WRONG = 900, GRACE = 450; // ms a gesture must be held
 const QUIET = 12000;               // ms an object stays quiet after an encounter
-const STORE = 'exocrism-grimoire';
+const STORE = 'familiars-w9-grimoire';
 
 let W = 960, H = 720;
 let vid = null, mirror = true, facing = 'user', camOn = false, started = false;
