@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Familiars</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/p5@2.3.4/lib/p5.min.js"></script>
+    <script src="https://unpkg.com/ml5@1/dist/ml5.js"></script>
+</head>
+<body>
+    <main>
+        <h1>Familiars</h1>
+        <p class="mut">Every object in your room has something living in it. Find it with the camera, wake it with a touch, and tame it with hand seals.</p>
+
+        <h2>Play</h2>
+        <div class="card">
+            <button id="btnBegin" class="go" onclick="begin()">Begin the Séance</button>
+            <button id="btnStop" onclick="endSeance()" disabled title="Close the camera">Stop</button>
+            <button id="btnFlip" onclick="flipCamera()" disabled title="Switch between the front and back camera">Flip Camera</button>
+            <button onclick="releaseAll()" title="Let every tamed spirit go and empty the grimoire">Release All</button>
+            <p id="status" class="mut status"></p>
+        </div>
+
+        <!-- The game window, with the spirit's stats and the grimoire beside it -->
+        <div class="stage">
+            <div id="cv"></div>
+            <div class="card side">
+                <b>Spirit</b>
+                <div id="spirit"></div>
+                <b class="side-head">Grimoire <span id="tally" class="mut"></span></b>
+                <div id="grimoire"></div>
+            </div>
+        </div>
+
+        <h2>How to Play</h2>
+        <ol>
+            <li><b>Scan.</b> Point the camera around the room. An object that houses a spirit glows red.</li>
+            <li><b>Commune.</b> Click the glowing object, or tap it on a touch screen, to wake the spirit. To leave it asleep, don't touch it.</li>
+            <li><b>Tame.</b> The spirit shows two to five seals. Make each one with one hand, in order, and hold it until its bar fills. A wrong seal frightens the spirit, and when its patience runs out it slips back into the object.</li>
+            <li><b>Keep.</b> A tamed spirit joins the line at the bottom of the screen and follows your hand.</li>
+        </ol>
+        <p class="mut">No camera? The game falls back to a practice mode: press <b>Space</b> to conjure an object, click it, and hold <b>1–5</b> for the seals.</p>
+
+        <h2 id="seal-chart">Seal Chart</h2>
+        <div class="card" id="seals"></div>
+
+        <h2 id="bestiary-chart">Bestiary</h2>
+        <p>Each kind of object houses one family of spirit. A spirit's rarity changes how it looks and what it is called, but never its family.</p>
+        <div class="card" id="bestiary"></div>
+
+        <h2>Proposal</h2>
+        <p>A game about taming, not fighting. It is controlled by two things that are not connected to the computer: the everyday objects in a room, and one bare hand.</p>
+        <p>The idea comes from animism: every everyday item has a spirit living in it. The camera finds an object, a touch wakes its spirit, and the player tames it with hand seals, the way the Yin-Yang Masters do. A tamed spirit is not defeated. It stays and follows the player, like a pet.</p>
+        <p>The seals are simple shapes made with the fingers of one hand, so the game can be played on a smartphone held in the other hand.</p>
+        <p>It runs in the browser with p5.js and two ml5.js models: <b>objectDetection</b> finds the objects, and <b>handPose</b> reads the hand.</p>
+
+        <h2>Rules</h2>
+        <ul>
+            <li><b>Object → family.</b> Drinking vessels hold water spirits, beds and couches hold sheet ghosts, screens hold phantoms, and so on (see the <a href="#bestiary-chart">Bestiary</a>).</li>
+            <li><b>Rarity.</b> Common 60%, Uncommon 30%, Rare 10%. Rarer spirits are bigger, grow horns (Uncommon) or a crown, a third eye and a cold glow (Rare), and their eyes change from red to amber to pale blue.</li>
+            <li><b>Family friendliness.</b> Fixed for each family: a hollow toy likes people, a blade imp does not.</li>
+            <li><b>Individual friendliness.</b> Rolled around the family's friendliness, so a spirit from a friendly family is usually friendly too. It sets the spirit's patience: 3.5 to 7 seconds for each seal it asks for. It also shows on its face.</li>
+            <li><b>Timidity.</b> Each spirit's own. A timid spirit asks for more seals, and loses more patience when it sees a wrong seal.</li>
+            <li><b>Seals needed.</b> 2 + rarity (0, 1 or 2) + timidity (0, 1 or 2), never more than 5.</li>
+        </ul>
+
+        <h2>Process</h2>
+        <p><b>Ideation.</b></p>
+        <figure class="sketch">
+            <img src="Images/Sketch.png" alt="Hand-drawn flowchart of the idea: from hand movement as a sign, to drawing signs to defeat demons, to taming spirits that live in everyday objects" loading="lazy">
+        </figure>
+        <ol class="chain">
+            <li><b>Interactive.</b> The brief asks for something controlled by real things that are not connected to the computer.</li>
+            <li><b>Hand movement as a sign.</b> A hand can make a sign, or a seal.</li>
+            <li><b>Draw the sign in the air.</b> Trace a shape, like a star, with a finger in front of the camera.</li>
+            <li><b>Use the drawings to defeat demons.</b> The project was first called <em>Exorcism</em>.</li>
+            <li><b>Two problems.</b>
+                <ul>
+                    <li>A sign is hard to draw by hand in the air. So the signs became shapes made with the fingers, and with one hand only, so the game can be played on a smartphone held in the other.</li>
+                    <li>Defeating demons is too violent. I need some peace in life.</li>
+                </ul>
+            </li>
+            <li><b>Tame them instead.</b> Tame demons and spirits, like the Yin-Yang Masters do. (Also, I want pets.) A spirit that stays with its tamer is a familiar, so the project became <em>Familiars</em>.</li>
+            <li><b>Animism.</b> Everyday items have spirits, which can be summoned and tamed. So the objects in the room became the place the spirits come from.</li>
+        </ol>
+        <p><b>Building it.</b></p>
+        <ol>
+            <li><b>Objects.</b> COCO-SSD knows 80 kinds of object. I picked the ones found in a room and grouped them into ten families.</li>
+            <li><b>Seals.</b> handPose reads the position of the hand and each finger. I chose five seals that can be made with one hand and are not complicated shapes.</li>
+            <li><b>Testing on a phone.</b> My first version woke a spirit with an open palm held in front of the camera. On a phone the hand covered the object, and running both models at once was too slow. Now a tap on the glowing object wakes the spirit, and only one model runs at a time: objectDetection while scanning, handPose while a spirit is out.</li>
+            <li><b>Spirits.</b> Their look follows the drawing style of my Week 7 haunted house.</li>
+        </ol>
+
+        <h2>Development Screenshots</h2>
+        <div class="shots">
+            <figure>
+                <img src="Images/TestMode.png" alt="A Murmur spirit being tamed, with two seals to make and its stats in the side panel" loading="lazy">
+                <figcaption><b>Practice mode.</b> Taming a Murmur with the keyboard instead of the camera. The panel on the right shows its friendliness, its timidity and how many seals it asks for.</figcaption>
+            </figure>
+            <figure>
+                <img src="Images/TestMode2.png" alt="Five tamed spirits standing in a row at the bottom of the game window" loading="lazy">
+                <figcaption><b>Followers.</b> Tamed spirits walk in a row along the bottom of the screen and are listed in the Grimoire.</figcaption>
+            </figure>
+            <figure>
+                <img src="Images/Double.png" alt="A tamed spirit in the middle of the screen and a copy of it at the bottom" loading="lazy">
+                <figcaption><b>Bug: one spirit, drawn twice.</b> A tamed spirit joined the row at the bottom at once, while it was still moving down the screen. Now it joins the row only when it lands there.</figcaption>
+            </figure>
+            <figure>
+                <img src="Images/Inconsistence.png" alt="Four followers; one has pale eyes instead of red" loading="lazy">
+                <figcaption><b>Bug: a different face.</b> A follower's eyes came out in the wrong colour, so it no longer looked like the spirit that was summoned.</figcaption>
+            </figure>
+            <figure>
+                <img src="Images/NoEyes.png" alt="A large Drowned King spirit with a mouth but no eyes" loading="lazy">
+                <figcaption><b>Bug: no eyes.</b> The eyes of the spirit being tamed disappeared. This and the bug before it had one cause: p5.js skips setting a fill colour it believes is already set, and my code had changed the colour on the canvas directly, so the eyes were painted with whatever colour was left there.</figcaption>
+            </figure>
+        </div>
+    </main>
+
+    <footer>
+        <p>Coding assisted by <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a> (Anthropic).</p>
+    </footer>
+
+    <script src="sketch.js"></script>
+</body>
+</html>
